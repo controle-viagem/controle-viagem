@@ -157,7 +157,7 @@ export function TravelersEditor({ value, onChange, locked }: Props) {
           <span className="label">Grupos (opcional)</span>
           <p className="mb-2 text-xs text-slate-500">
             Juntam pessoas para ver e acertar juntas o que pagar e receber, como um casal. Cada pessoa continua com a sua
-            parte nos gastos.
+            parte nos gastos. Cada pessoa fica em um só grupo: marcar num grupo tira do outro.
           </p>
           <div className="space-y-2">
             {value.groups.map((g) => (
@@ -172,9 +172,14 @@ export function TravelersEditor({ value, onChange, locked }: Props) {
                   {everyone.map((p) => (
                     <button key={p.id} type="button" className={chip(g.memberIds.includes(p.id))} onClick={() => toggleMember(g.id, p.id)} aria-pressed={g.memberIds.includes(p.id)}>
                       <Avatar id={p.id} name={p.name || '?'} size="sm" /> {p.name || '—'}
+                      {(() => {
+                        const other = value.groups.find((x) => x.id !== g.id && x.memberIds.includes(p.id))
+                        return other ? <span className="text-xs opacity-60">({other.name || 'outro grupo'})</span> : null
+                      })()}
                     </button>
                   ))}
                 </div>
+                {g.memberIds.length === 0 && <p className="mt-1.5 text-xs text-amber-600">Grupo sem ninguém não é salvo.</p>}
               </div>
             ))}
           </div>

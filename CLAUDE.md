@@ -105,6 +105,8 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - **Acerto** (`settlements`): sempre na moeda da dívida; pode registrar o pago em reais com a cotação combinada
   (sugerida = custo médio das carteiras, senão a última cotação da viagem). Acerto entre grupos vira uma linha por
   pessoa com o mesmo `batchId` (`settlementRows`, na proporção do saldo de cada membro); excluir apaga o lote.
+- **Cada pessoa fica em um só grupo** (senão o saldo contaria duas vezes na visão por grupo): marcar num grupo tira
+  do outro, e grupo vazio não é salvo. O editor mostra em que grupo a pessoa já está e avisa do grupo vazio.
 - **Editar acerto** (toque na linha em "Acertos feitos"): reabre o lote inteiro (`editContext`), com os saldos sem ele para
   redividir; pessoas do lote que não formam um grupo viram uma parte própria ("Ana + Léo"). Salvar substitui o lote.
 - Pago em reais: cotação + spread % + IOF % (como no cartão, `cardCharge`), ou o valor digitado à mão; quando é
@@ -150,7 +152,10 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - **Acerto em moeda mexe nas carteiras** (`Settlement.fromWalletId`/`toWalletId`, "Saiu de / Entrou em"; só quando não
   é pago em reais): saída pelo médio; entrada com o custo da saída (como transferência) ou, sem carteira de saída, pelo
   médio de quem recebe. Só controle de saldo: não muda o custo da viagem.
-- **Custo de** (Início): seletor de viajantes e atalhos de grupo; tudo do Início soma as partes dessas pessoas e o
+- **Custo de** (Início, Relatórios, orçamento, prestação de contas — `CostSelector`): três visões (decisão do dono,
+  0.8.1): **"Eu e meu grupo"** (padrão: eu ou o grupo de que faço parte, um de cada vez), **"Grupos"** (um ou mais
+  grupos, somados) e **"Viajantes"** (cada pessoa, com "Só eu" e "Todos"). Sem grupos na viagem, só viajantes. A
+  visão segue a escolha guardada até o dono tocar numa aba. Tudo do Início soma as partes dessas pessoas e o
   saldo a acertar delas. Guardado por viagem neste aparelho (`local` `custoDe:<viagem>`). "Saldos em moeda" mostra as
   minhas carteiras e as dos viajantes da viagem.
 
