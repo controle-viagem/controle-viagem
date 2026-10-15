@@ -10,6 +10,7 @@ import { filterCount, filterToParams, lancamentosLink, matchesFilter, parseFilte
 import { dayNumber, PHASE_LABEL, phaseOf, type Phase } from '../../domain/viagem'
 import { dayLabel, formatBRL, fullDate } from '../../lib/format'
 import { NoTrip } from '../viagens/NoTrip'
+import { payersOf } from '../../domain/rateio'
 import { CategoriaLoteModal } from './CategoriaLoteModal'
 import { ExpenseRow } from './ExpenseRow'
 import { FiltroModal } from './FiltroModal'
@@ -65,7 +66,10 @@ export function LancamentosPage() {
   const total = shown.reduce((sum, e) => sum + mine(e), 0)
   const count = filterCount(filter)
   const nameOf = (id: string) => categories.get(id)?.name ?? methods.get(id)?.name ?? people.get(id)?.name ?? '—'
-  const usedMethods = [...new Set(expenses.map((e) => e.methodId))].map((id) => methods.get(id)).filter((m) => !!m)
+  // Meios usados por qualquer pagador (os meus e os dos outros viajantes).
+  const usedMethods = [...new Set(expenses.flatMap((e) => [e.methodId, ...payersOf(e).map((p) => p.methodId)]))]
+    .map((id) => (id ? methods.get(id) : undefined))
+    .filter((m) => !!m)
   const usedCurrencies = [...new Set(expenses.map((e) => e.currency))].sort()
 
   const selecting = selected !== null

@@ -16,3 +16,11 @@ export function walletsOf<T extends Pick<PaymentMethod, 'holderName'>>(person: {
   if (person.id === ME) return wallets.filter(isMine)
   return wallets.filter((w) => !isMine(w) && plain(w.holderName ?? '') === plain(person.name))
 }
+
+/**
+ * Meios de pagamento de uma pessoa (mesma regra do titular) que pagam nesta moeda: em reais, os em reais e os cartões;
+ * em outra moeda, os cartões e as carteiras.
+ */
+export function methodsFor<T extends Pick<PaymentMethod, 'holderName' | 'kind'>>(person: { id: string; name: string }, methods: T[], currency: string): T[] {
+  return walletsOf(person, methods).filter((m) => (currency === 'BRL' ? m.kind !== 'carteira' : m.kind !== 'brl'))
+}

@@ -203,6 +203,19 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - Filtro "A pagar" (`apagar=1`); selo "a pagar" na lista; seção opcional "Gastos previstos" na prestação de contas,
   **desligada por padrão, inclusive no modelo Completo**; coluna "Situação" (pago / a pagar) na planilha.
 
+### Meios de pagamento dos outros viajantes (versão 0.9.0)
+
+- **Titular em qualquer meio** (não só carteira): conta em reais, cartão em reais, multimoeda ou espécie de outro
+  viajante, ligado pelo nome (`methodsFor` em `domain/titular.ts`: em reais, contas e cartões; em outra moeda,
+  cartões e carteiras). Os meios com titular **nunca aparecem entre os meus** (formulário, calculadora).
+- No "quem pagou", **pessoa sem nenhum meio cadastrado não mostra a pergunta** do meio (decisão do dono: não interessa).
+- **Cartão em reais de outro viajante** (decisão do dono): a parte dele em moeda estrangeira custa cotação de
+  referência × (1 + spread) × (1 + IOF) do cadastro do cartão, e conta como estimado (`RateLookup(moeda, meio)`,
+  `payerBRL` em `custoViagem.ts`). Carteira dele continua pelo custo médio real.
+- **Por meio de pagamento** (`totalsByMethod`): quanto cada pessoa escolhida pagou com cada meio, em reais, sem os
+  gastos a pagar. Seção `meios` da prestação de contas (entra no Completo) e quadro em Relatórios. O filtro "Meios"
+  da lista acha o meio de qualquer pagador.
+
 ## Decisões para as próximas fases
 
 - **Consulta por viajante** (adiada pelo dono): link só leitura por pessoa/grupo com o extrato embutido (sem

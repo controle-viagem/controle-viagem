@@ -52,6 +52,15 @@ describe('filtro da lista de gastos', () => {
     expect(match(pre, { de: '2026-12-01' })).toBe(false)
     expect(match(pre, { moeda: ['USD'] })).toBe(false)
     expect(match(pre, { meio: ['pix', 'visa'] })).toBe(true)
+    expect(match(pre, { meio: ['visa'] })).toBe(false)
+  })
+
+  it('meio de outro viajante também filtra', () => {
+    const together = expense({ payers: [{ personId: 'eu', amount: 6000 }, { personId: 'ana', amount: 4000, methodId: 'itau-ana' }] })
+    expect(match(together, { meio: ['itau-ana'] })).toBe(true)
+    expect(match(together, { meio: ['visa'] })).toBe(true)
+    expect(match(together, { meio: ['pix'] })).toBe(false)
+    expect(match(expense({ payerId: 'ana', methodId: 'itau-ana' }), { meio: ['itau-ana'] })).toBe(true)
   })
 
   it('a conferir na fatura, divididos e pagos por outros', () => {

@@ -8,6 +8,7 @@ import { db } from '../../db/db'
 import { byCurrency } from '../../domain/custoMedio'
 import { cheapest, priceWithExtras, viaCard, viaWallet, type Option } from '../../domain/calculadora'
 import { CURRENCIES, currencyName, decimalText, parseDecimal } from '../../domain/moeda'
+import { isMine } from '../../domain/titular'
 import { formatBRL, formatMoney, formatRate } from '../../lib/format'
 import { useWalletData } from '../carteiras/useWalletData'
 
@@ -29,7 +30,7 @@ function PercentField({ id, label, value, onChange }: { id: string; label: strin
 export function CalculadoraPage() {
   const { trip } = useApp()
   const wallet = useWalletData()
-  const cards = (useLiveQuery(() => db.paymentMethods.where('kind').equals('cartao_brl').toArray(), []) ?? []).filter((m) => !m.archived)
+  const cards = (useLiveQuery(() => db.paymentMethods.where('kind').equals('cartao_brl').toArray(), []) ?? []).filter((m) => !m.archived && isMine(m))
   const tripCurrencies = trip?.currencies ?? []
   const [currency, setCurrency] = useState(tripCurrencies[0] ?? 'USD')
   const [price, setPrice] = useState(0)

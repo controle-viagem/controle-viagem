@@ -1,10 +1,11 @@
-import { CalendarDays, FileText, PiggyBank, Plane, Sun, TrendingUp, type LucideIcon } from 'lucide-react'
+import { CalendarDays, CreditCard, FileText, PiggyBank, Plane, Sun, TrendingUp, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../../app/AppContext'
 import { Avatar, CurrencyBadge } from '../../components/Badges'
 import { CategoryBreakdown } from '../../components/CategoryBreakdown'
 import { CHART_THEME } from '../../components/chartTheme'
+import { VALUE_STYLE } from '../../components/valueStyle'
 import { budgetStatus } from '../../domain/orcamento'
 import { buildReport } from '../../domain/relatorio'
 import { summarize } from '../../domain/resumo'
@@ -44,13 +45,14 @@ export function RelatoriosPage() {
 
   const { personIds } = cost
   const report = buildReport(input, {
-    personIds, scope: 'todos', sections: ['resumo', 'dias', 'pessoas', 'cambio'], valores: 'parte', moeda: 'ambas', nomes: 'mostrar',
+    personIds, scope: 'todos', sections: ['resumo', 'dias', 'pessoas', 'meios', 'cambio'], valores: 'parte', moeda: 'ambas', nomes: 'mostrar',
   })
   const s = summarize(trip, input.expenses, input.today, input.walletCosts, { personIds, rateFor: input.rateFor })
   const summary = report.summary!
   const fx = report.fx!
   const people = report.people ?? []
   const maxPerson = Math.max(1, ...people.map((p) => p.total))
+  const byMethod = report.methods ?? []
   const budget = trip.budget
     ? budgetStatus(trip.budget, summarize(trip, input.expenses, input.today, input.walletCosts, { personIds: trip.budget.personIds, rateFor: input.rateFor }), trip)
     : null
@@ -119,6 +121,26 @@ export function RelatoriosPage() {
                 <div className="ml-8 mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full rounded-full" style={{ width: `${(p.total / maxPerson) * 100}%`, background: chart.series }} />
                 </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {byMethod.length > 0 && (
+        <section className="card p-4">
+          <h2 className="mb-1 flex items-center gap-2 font-semibold">
+            <CreditCard size={18} className="text-slate-400" /> Por meio de pagamento
+          </h2>
+          <p className="mb-3 text-xs text-slate-500">Quanto {cost.onlyMe ? 'você pagou' : 'cada pessoa do "Custo de" pagou'} com cada meio, em reais (sem os gastos a pagar).</p>
+          <ul className="divide-y divide-slate-100 text-sm">
+            {byMethod.map((m, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 py-1.5">
+                <span className="min-w-0">
+                  <span className="block truncate">{m.method}</span>
+                  <span className="block truncate text-xs text-slate-500">{cost.onlyMe ? '' : `${m.person} · `}{m.count} {m.count === 1 ? 'gasto' : 'gastos'}</span>
+                </span>
+                <span className={`shrink-0 font-medium tabular-nums ${m.estimated ? VALUE_STYLE.estimado : ''}`}>{m.estimated ? '≈ ' : ''}{formatBRL(m.brl)}</span>
               </li>
             ))}
           </ul>

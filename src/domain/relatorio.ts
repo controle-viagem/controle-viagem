@@ -1,6 +1,6 @@
 import { ME, type Category, type Expense, type PaymentMethod, type Person, type Settlement, type Trip, type WalletMove } from '../db/types'
 import type { Position } from './custoMedio'
-import { fullBRL, partBRL, type RateLookup } from './custoViagem'
+import { fullBRL, partBRL, totalsByMethod, type RateLookup } from './custoViagem'
 import type { WalletCosts } from './despesa'
 import { involves, matchesFilter } from './filtro'
 import { budgetStatus, type BudgetStatus } from './orcamento'
@@ -12,10 +12,10 @@ import { daysBetween, tripDays } from './viagem'
 
 /** Partes que o dono liga ou desliga na prestação de contas. */
 export type SectionKey =
-  | 'resumo' | 'categorias' | 'dias' | 'pessoas' | 'gastos' | 'saldos' | 'sugeridos' | 'acertos' | 'cambio' | 'carteiras' | 'orcamento' | 'previstos'
+  | 'resumo' | 'categorias' | 'dias' | 'pessoas' | 'meios' | 'gastos' | 'saldos' | 'sugeridos' | 'acertos' | 'cambio' | 'carteiras' | 'orcamento' | 'previstos'
 
 export const SECTIONS: SectionKey[] = [
-  'resumo', 'categorias', 'dias', 'pessoas', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento', 'previstos',
+  'resumo', 'categorias', 'dias', 'pessoas', 'meios', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento', 'previstos',
 ]
 
 export const SECTION_LABEL: Record<SectionKey, string> = {
@@ -23,6 +23,7 @@ export const SECTION_LABEL: Record<SectionKey, string> = {
   categorias: 'Por categoria',
   dias: 'Por dia',
   pessoas: 'Por pessoa',
+  meios: 'Por meio de pagamento',
   gastos: 'Lista de gastos',
   saldos: 'Saldos a acertar',
   sugeridos: 'Pagamentos que faltam',
@@ -82,6 +83,8 @@ export interface ReportInput {
   moves: WalletMove[]
   positions: Position[]
   moveCosts: Map<string, number>
+  /** Todos os meios de pagamento (meus e dos viajantes), para os nomes no resumo por meio. */
+  methods?: Map<string, PaymentMethod>
 }
 
 export interface ReportExpense {
@@ -127,6 +130,8 @@ export interface ReportModel {
   categories?: { id: string; name: string; color: string; total: number; share: number; subs: { name: string; total: number; share: number }[] }[]
   days?: { date: string; total: number }[]
   people?: { id: string; name: string; total: number }[]
+  /** Quanto cada pessoa escolhida pagou com cada meio, em reais (sem os gastos a pagar). */
+  methods?: { person: string; method: string; brl: number; estimated: boolean; count: number }[]
   expenses?: ReportExpense[]
   balances?: { name: string; amounts: { currency: string; value: number }[] }[]
   transfers?: { from: string; to: string; currency: string; amount: number; brl: number | null }[]
@@ -211,6 +216,15 @@ export function buildReport(input: ReportInput, config: ReportConfig): ReportMod
     model.people = ids
       .map((id) => ({ id, name: realName(id), total: summarize(trip, expenses, today, walletCosts, { personIds: [id], rateFor }).total }))
       .sort((a, b) => b.total - a.total)
+  }
+  if (has('meios')) {
+    model.methods = totalsByMethod(expenses, personIds, walletCosts, rateFor).map((r) => ({
+      person: realName(r.personId),
+      method: r.methodId ? (input.methods?.get(r.methodId)?.name ?? '—') : r.personId === ME ? 'Sem meio informado' : 'Outro meio (sem controle)',
+      brl: r.brl,
+      estimated: r.estimated,
+      count: r.count,
+    }))
   }
   if (has('gastos')) {
     model.expenses = expenses.map((e) => {

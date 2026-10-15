@@ -21,6 +21,7 @@ export function useReportInput(trip: Trip | undefined): { input: ReportInput | n
       walletCosts: data.walletCosts,
       rateFor: data.rateFor,
       wallets: wallet.wallets,
+      methods: data.methods,
       moves: wallet.moves,
       positions: wallet.ledger.positions,
       moveCosts: wallet.ledger.moveCosts,

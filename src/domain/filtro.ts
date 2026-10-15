@@ -101,7 +101,8 @@ export function matchesFilter(e: Expense, f: ExpenseFilter, ctx: FilterContext):
     const ok = subsChosen.length > 0 ? !!e.subcategoryId && subsChosen.includes(e.subcategoryId) : chosen.has(e.categoryId)
     if (!ok) return false
   }
-  if (f.meio?.length && !f.meio.includes(e.methodId)) return false
+  // Meio de qualquer pagador: o meu ou o de outro viajante (cartão, carteira ou conta dele).
+  if (f.meio?.length && !payersOf(e).some((p) => p.methodId && f.meio!.includes(p.methodId)) && !f.meio.includes(e.methodId)) return false
   if (f.pessoa?.length && !f.pessoa.some((id) => involves(e, id))) return false
   if (f.moeda?.length && !f.moeda.includes(e.currency)) return false
   if (f.fase?.length && !f.fase.includes(phaseOf(e.date, ctx.trip))) return false

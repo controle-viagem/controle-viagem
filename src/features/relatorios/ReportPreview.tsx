@@ -86,6 +86,17 @@ export function ReportPreview({ model, title }: { model: ReportModel; title: str
                 <Rows rows={model.people.map((p) => [p.name, formatBRL(p.total)])} />
               </Section>
             ) : null
+          case 'meios':
+            return model.methods ? (
+              <Section key={key} title={title}>
+                {model.methods.length === 0 ? empty('Nenhum pagamento dessas pessoas.') : (
+                  <Rows rows={model.methods.map((m) => [
+                    `${m.method} · ${m.person}`,
+                    <span key="v" className={m.estimated ? VALUE_STYLE.estimado : undefined}>{m.estimated ? '≈ ' : ''}{formatBRL(m.brl)} · {m.count} {m.count === 1 ? 'gasto' : 'gastos'}</span>,
+                  ])} />
+                )}
+              </Section>
+            ) : null
           case 'gastos':
             return model.expenses ? (
               <Section key={key} title={`${title} (${model.expenses.length})`}>

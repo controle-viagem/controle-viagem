@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Avatar } from '../../components/Badges'
 import { MoneyInput } from '../../components/MoneyInput'
 import { ME, SPLIT_MODE_LABEL, type Expense, type PaymentMethod, type Person, type SplitMode, type Trip } from '../../db/types'
-import { walletsOf } from '../../domain/titular'
+import { methodsFor } from '../../domain/titular'
 import { decimalText, parseDecimal } from '../../domain/moeda'
 import { payersOf, sharesOf } from '../../domain/rateio'
 import { allocate } from '../../domain/saldos'
@@ -15,7 +15,7 @@ export interface SplitState {
   payers: string[]
   /** Quanto cada pagador pagou, quando são vários. */
   payerAmounts: Record<string, number>
-  /** Meio que cada outra pessoa usou (carteira dela); '' = outro meio, sem controle. O meu fica no formulário. */
+  /** Meio que cada outra pessoa usou (carteira, cartão ou conta dela); '' = outro meio, sem controle. O meu fica no formulário. */
   payerMethods: Record<string, string>
   participants: string[]
   mode: SplitMode
@@ -43,10 +43,12 @@ export function splitStateOf(expense?: Expense): SplitState {
 
 /**
  * Quem pagou, para gravar: um só (`payerId` + `methodId`) ou vários com o valor e o meio de cada (`payers`, e o meu
- * meio também em `methodId`). `myMethodId` = o meio que escolhi no formulário.
+ * meio também em `methodId`). `myMethodId` = o meio que escolhi no formulário. `allowed` descarta o meio de outra pessoa
+ * que não serve mais (ex.: a moeda mudou e a carteira dela não paga em reais).
  */
-export function payersFrom(s: SplitState, myMethodId = '') {
-  const methodOf = (id: string) => (id === ME ? myMethodId : (s.payerMethods[id] ?? ''))
+export function payersFrom(s: SplitState, myMethodId = '', allowed: (personId: string, methodId: string) => boolean = () => true) {
+  const other = (id: string) => s.payerMethods[id] ?? ''
+  const methodOf = (id: string) => (id === ME ? myMethodId : allowed(id, other(id)) ? other(id) : '')
   if (!s.open) return { payerId: ME, payers: undefined, methodId: myMethodId }
   if (s.payers.length <= 1) {
     const payerId = s.payers[0] ?? ME
@@ -82,8 +84,8 @@ export function splitFrom(s: SplitState) {
 interface Props {
   trip: Trip
   people: Person[]
-  /** Carteiras ativas (minhas e dos pares), para o "pago com" de quem não sou eu. */
-  wallets: PaymentMethod[]
+  /** Meios ativos (meus e dos viajantes), para o "pago com" de quem não sou eu. */
+  methods: PaymentMethod[]
   amount: number
   currency: string
   state: SplitState
@@ -93,7 +95,7 @@ interface Props {
 const MODES: SplitMode[] = ['igual', 'cotas', 'valores']
 
 /** Quem pagou e entre quem o gasto é dividido. Recolhido por padrão: a maioria dos gastos é só minha. */
-export function SplitEditor({ trip, people, wallets, amount, currency, state, onChange }: Props) {
+export function SplitEditor({ trip, people, methods, amount, currency, state, onChange }: Props) {
   const set = (patch: Partial<SplitState>) => onChange({ ...state, ...patch })
   const chosen = new Set(state.participants)
   const paying = new Set(state.payers)
@@ -103,15 +105,15 @@ export function SplitEditor({ trip, people, wallets, amount, currency, state, on
     const allIn = ids.every((id) => chosen.has(id))
     set({ participants: allIn ? state.participants.filter((p) => !ids.includes(p)) : [...new Set([...state.participants, ...ids])] })
   }
-  /** Carteiras da pessoa que pagam nesta moeda (carteira só paga em moeda estrangeira). */
-  const walletsFor = (p: Person) => (currency === 'BRL' ? [] : walletsOf(p, wallets))
+  /** Meios da pessoa que pagam nesta moeda (carteira só paga em moeda estrangeira; conta em reais, só em reais). */
+  const methodsOfPerson = (p: Person) => methodsFor(p, methods, currency)
   function togglePayer(id: string) {
     const next = paying.has(id) ? state.payers.filter((p) => p !== id) : [...state.payers, id]
     if (next.length === 0) return // alguém precisa ter pagado
     // Quem entra pagando já vem com a carteira dele, se tiver uma.
     const person = people.find((p) => p.id === id)
     const payerMethods = { ...state.payerMethods }
-    if (person && id !== ME && !(id in payerMethods)) payerMethods[id] = walletsFor(person)[0]?.id ?? ''
+    if (person && id !== ME && !(id in payerMethods)) payerMethods[id] = methodsOfPerson(person)[0]?.id ?? ''
     set({ payers: next, payerAmounts: equalAmounts(next), payerMethods })
   }
   const equalAmounts = (ids: string[]) =>
@@ -191,17 +193,18 @@ export function SplitEditor({ trip, people, wallets, amount, currency, state, on
                     />
                   )}
                 </div>
-                {p.id !== ME && (
+                {/* Sem nenhum meio cadastrado para a pessoa, não pergunta: o meio dela não interessa. */}
+                {p.id !== ME && methodsOfPerson(p).length > 0 && (
                   <select
                     className="field !py-1 text-sm"
                     aria-label={`Meio que ${p.name} usou`}
-                    value={state.payerMethods[p.id] ?? ''}
+                    value={methodsOfPerson(p).some((m) => m.id === state.payerMethods[p.id]) ? state.payerMethods[p.id] : ''}
                     onChange={(e) => set({ payerMethods: { ...state.payerMethods, [p.id]: e.target.value } })}
                   >
-                    {walletsFor(p).map((w) => (
-                      <option key={w.id} value={w.id}>{w.name} (sai do saldo)</option>
+                    {methodsOfPerson(p).map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}{m.kind === 'carteira' ? ' (sai do saldo)' : m.kind === 'cartao_brl' && currency !== 'BRL' ? ' (com IOF e spread)' : ''}</option>
                     ))}
-                    <option value="">Outro meio (sem controle de saldo)</option>
+                    <option value="">Outro meio (sem controle)</option>
                   </select>
                 )}
               </div>

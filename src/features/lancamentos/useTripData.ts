@@ -62,8 +62,8 @@ export function useTripData(tripId: string | undefined): TripData {
   }, [tripId])
   const walletCosts = wallet.ledger.expenseCosts
   const rateFor = useMemo(
-    () => referenceRates(byCurrency(wallet.ledger.positions), data?.expenses ?? []),
-    [wallet.ledger, data?.expenses],
+    () => referenceRates(byCurrency(wallet.ledger.positions), data?.expenses ?? [], [...(data?.methods.values() ?? [])]),
+    [wallet.ledger, data?.expenses, data?.methods],
   )
   return data && wallet.loaded
     ? { ...data, walletCosts, rateFor, loaded: true }

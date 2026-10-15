@@ -12,7 +12,7 @@ import { ME, type Expense, type PaymentMethod, type Trip } from '../../db/types'
 import { cardCharge, effectiveRate, iofInside } from '../../domain/cambio'
 import { ledger } from '../../domain/custoMedio'
 import { expenseError, spendId } from '../../domain/despesa'
-import { isMine } from '../../domain/titular'
+import { isMine, methodsFor } from '../../domain/titular'
 import { splitTotal, type ExtraMode } from '../../domain/impostos'
 import { CURRENCIES, currencyName, decimalText, parseDecimal } from '../../domain/moeda'
 import { payersError, splitError } from '../../domain/rateio'
@@ -39,10 +39,10 @@ const currencyOptions = (trip: Trip) => [
 
 /**
  * Meus meios que pagam na moeda escolhida: em reais, os em reais e os cartões; em outra moeda, os cartões e as minhas
- * carteiras (as dos pares aparecem para eles, na divisão).
+ * carteiras. Os dos outros viajantes (com titular) aparecem para eles, na divisão.
  */
 const accepts = (m: PaymentMethod, currency: string) =>
-  currency === 'BRL' ? m.kind !== 'carteira' : m.kind !== 'brl' && (m.kind !== 'carteira' || isMine(m))
+  isMine(m) && (currency === 'BRL' ? m.kind !== 'carteira' : m.kind !== 'brl')
 
 const TAX_MODES: [ExtraMode, string][] = [['pct', 'Taxa %'], ['valor', 'Valor'], ['sem', 'Sem']]
 const TIP_MODES: [ExtraMode, string][] = [['sem', 'Sem'], ['pct', '%'], ['valor', 'Valor']]
@@ -186,7 +186,10 @@ export function ExpenseForm({ trip, expense, onClose }: Props) {
       localTaxPct: effectiveTaxMode === 'pct' ? (parseDecimal(taxRate) ?? undefined) : undefined,
       tipPct: tipMode === 'pct' ? (parseDecimal(tipRate) ?? undefined) : undefined,
     }
-    const paid = payersFrom(split, paidByMe ? method!.id : '')
+    const paid = payersFrom(split, paidByMe ? method!.id : '', (personId, methodId) => {
+      const person = people.find((p) => p.id === personId)
+      return !!person && methodsFor(person, methods, currency).some((m) => m.id === methodId)
+    })
     const division = splitFrom(split)
     const problem = expenseError(draft, method, paidByMe) ?? payersError(amount, paid.payers) ?? splitError(amount, division)
     if (problem) return setError(problem)
@@ -290,7 +293,7 @@ export function ExpenseForm({ trip, expense, onClose }: Props) {
             </span>
           </label>
 
-          <SplitEditor trip={trip} people={people} wallets={methods.filter((m) => m.kind === 'carteira' && !m.archived)} amount={amount} currency={currency} state={split} onChange={setSplit} />
+          <SplitEditor trip={trip} people={people} methods={methods.filter((m) => !m.archived)} amount={amount} currency={currency} state={split} onChange={setSplit} />
 
           <div className="grid grid-cols-2 gap-3">
             <div className={paidByMe ? '' : 'col-span-2'}>

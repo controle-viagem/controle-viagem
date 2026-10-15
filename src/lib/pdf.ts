@@ -165,6 +165,17 @@ export function renderReportPdf(model: ReportModel, title: string, attachments?:
         table(['Pessoa', 'Custo'], people.map((p) => [p.name, brl(p.total)]), { columnStyles: { 1: { halign: 'right' } }, tableWidth: width * 0.6 })
         break
       }
+      case 'meios': {
+        const rows = model.methods
+        if (!rows) break
+        heading(key)
+        if (rows.length === 0) { note('Nenhum pagamento dessas pessoas.'); break }
+        note('Quanto cada pessoa pagou com cada meio, em reais (sem os gastos ainda a pagar). ~ = estimado.')
+        table(['Meio', 'Quem pagou', 'Gastos', 'Em reais'], rows.map((m) => [m.method, m.person, String(m.count), `${m.estimated ? '~ ' : ''}${brl(m.brl)}`]), {
+          columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } },
+        })
+        break
+      }
       case 'gastos': {
         const rows = model.expenses
         if (!rows) break

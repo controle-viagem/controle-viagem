@@ -102,7 +102,7 @@ export function FiltroModal({ filter, categories, methods, people, currencies, o
 
         {methods.length > 0 && (
           <Section title="Meios de pagamento">
-            <Chips options={methods.map((m) => ({ id: m.id, label: m.name }))} value={draft.meio ?? []} onToggle={(id) => toggle('meio', id)} />
+            <Chips options={methods.map((m) => ({ id: m.id, label: m.holderName ? `${m.name} (${m.holderName})` : m.name }))} value={draft.meio ?? []} onToggle={(id) => toggle('meio', id)} />
           </Section>
         )}
 

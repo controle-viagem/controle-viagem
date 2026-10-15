@@ -52,7 +52,7 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
     const iofPct = parseDecimal(iof)
     const spreadPct = parseDecimal(spread)
     if (card && (iofPct === null || spreadPct === null)) return setError('Informe o IOF e o spread em % (pode ser 0).')
-    if (kind === 'carteira' && othersWallet && !holder.trim()) return setError('Informe o nome do titular (como está no cadastro de viajantes).')
+    if (othersWallet && !holder.trim()) return setError('Informe o nome do titular (como está no cadastro de viajantes).')
     await saveMethod({
       id: method?.id,
       name: name.trim(),
@@ -61,7 +61,7 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
       iofPct: card ? (iofPct ?? 0) : undefined,
       spreadPct: card ? (spreadPct ?? 0) : undefined,
       walletType: kind === 'carteira' ? walletType : undefined,
-      holderName: kind === 'carteira' && othersWallet && holder.trim() ? holder.trim() : undefined,
+      holderName: othersWallet && holder.trim() ? holder.trim() : undefined,
     })
     onClose()
   }
@@ -124,30 +124,30 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
           </div>
         )}
 
-        {kind === 'carteira' && (
-          <div>
-            <span className="label">Titular</span>
-            <div className="grid grid-cols-2 gap-2">
-              {[false, true].map((other) => (
-                <label
-                  key={String(other)}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2 text-sm font-medium ${othersWallet === other ? 'border-slate-900 bg-slate-50' : 'border-slate-200'}`}
-                >
-                  <input type="radio" name="titular" className="accent-slate-900" checked={othersWallet === other} onChange={() => setOthersWallet(other)} />
-                  {other ? 'Outra pessoa' : 'Eu'}
-                </label>
-              ))}
-            </div>
-            {othersWallet && (
-              <input className="field mt-2" aria-label="Nome do titular" placeholder="Ex.: Ana" maxLength={40} value={holder} onChange={(e) => setHolder(e.target.value)} />
-            )}
-            <p className="mt-1 text-xs text-slate-500">
-              {othersWallet
-                ? 'Use o mesmo nome do viajante: quando ele pagar um gasto ou um acerto, esta carteira aparece para ele, em qualquer viagem.'
-                : 'Carteira sua: aparece quando você paga.'}
-            </p>
+        <div>
+          <span className="label">Titular</span>
+          <div className="grid grid-cols-2 gap-2">
+            {[false, true].map((other) => (
+              <label
+                key={String(other)}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2 text-sm font-medium ${othersWallet === other ? 'border-slate-900 bg-slate-50' : 'border-slate-200'}`}
+              >
+                <input type="radio" name="titular" className="accent-slate-900" checked={othersWallet === other} onChange={() => setOthersWallet(other)} />
+                {other ? 'Outra pessoa' : 'Eu'}
+              </label>
+            ))}
           </div>
-        )}
+          {othersWallet && (
+            <input className="field mt-2" aria-label="Nome do titular" placeholder="Ex.: Ana" maxLength={40} value={holder} onChange={(e) => setHolder(e.target.value)} />
+          )}
+          <p className="mt-1 text-xs text-slate-500">
+            {othersWallet
+              ? kind === 'carteira'
+                ? 'Use o mesmo nome do viajante: quando ele pagar um gasto ou um acerto, esta carteira aparece para ele, em qualquer viagem.'
+                : 'Use o mesmo nome do viajante: aparece só quando ele pagar um gasto, em qualquer viagem. Não aparece entre os seus meios.'
+              : 'Meio seu: aparece quando você paga.'}
+          </p>
+        </div>
 
         {card && (
           <div className="grid grid-cols-2 gap-3">
@@ -200,8 +200,9 @@ export function MeiosPage() {
                 {m.kind === 'cartao_brl'
                   ? `IOF ${decimalText(m.iofPct ?? 0)}% · spread ${decimalText(m.spreadPct ?? 0)}%`
                   : m.kind === 'carteira'
-                    ? `${WALLET_TYPE_LABEL[m.walletType ?? 'multimoeda']}${m.holderName ? ` · titular ${m.holderName}` : ''}`
+                    ? WALLET_TYPE_LABEL[m.walletType ?? 'multimoeda']
                     : METHOD_KIND_LABEL[m.kind]}
+                {m.holderName ? ` · titular ${m.holderName}` : ''}
               </span>
             </span>
           </button>

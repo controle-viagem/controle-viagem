@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Category, Expense, Person, Settlement, Trip } from '../db/types'
+import type { Category, Expense, PaymentMethod, Person, Settlement, Trip } from '../db/types'
 import { buildReport, presetConfig, SECTIONS, type ReportInput } from './relatorio'
 import { summarize } from './resumo'
 
@@ -59,6 +59,15 @@ describe('prestação de contas', () => {
     // Tudo, menos os gastos previstos (seção opcional, desligada por padrão).
     expect(SECTIONS.filter((s) => !r.config.sections.includes(s))).toEqual(['previstos'])
     expect(r.forecast).toBeUndefined()
+  })
+
+  it('por meio de pagamento: quanto cada pessoa escolhida pagou com cada meio', () => {
+    const methods = new Map([['pix', { id: 'pix', name: 'Pix', kind: 'brl' } as PaymentMethod]])
+    const r = buildReport({ ...input, methods }, { ...presetConfig('completo', []), personIds: ['eu', 'leo'], sections: ['meios'] })
+    expect(r.methods).toEqual([
+      { person: 'Eu', method: 'Pix', brl: 55000, estimated: false, count: 2 },
+      { person: 'Léo', method: 'Outro meio (sem controle)', brl: 6000, estimated: false, count: 1 },
+    ])
   })
 
   it('gastos previstos: fora dos saldos, à parte na seção própria', () => {
