@@ -56,7 +56,20 @@ describe('prestação de contas', () => {
     expect(r.settlements).toEqual([{ date: '2026-12-22', from: 'Léo', to: 'Eu', currency: 'BRL', amount: 5000, paid: undefined }])
     // Alimentação: meu jantar R$ 150 + minha metade do táxi do Léo R$ 30 = R$ 180 de R$ 200 (90%).
     expect(r.budget?.categories.map((c) => [c.id, c.level])).toEqual([['alim', 'atencao']])
-    expect(SECTIONS.every((s) => r.config.sections.includes(s))).toBe(true)
+    // Tudo, menos os gastos previstos (seção opcional, desligada por padrão).
+    expect(SECTIONS.filter((s) => !r.config.sections.includes(s))).toEqual(['previstos'])
+    expect(r.forecast).toBeUndefined()
+  })
+
+  it('gastos previstos: fora dos saldos, à parte na seção própria', () => {
+    const van = expense({ description: 'Van do aeroporto', amount: 24000, pending: true, split: equal(['eu', 'ana', 'joao', 'leo']) })
+    const config = { ...presetConfig('completo', []), sections: ['saldos', 'previstos'] as typeof SECTIONS }
+    const r = buildReport({ ...input, expenses: [...input.expenses, van] }, config)
+    // Meu saldo não muda com a van: R$ 300 (estacionamento) − R$ 30 (táxi do Léo) − R$ 50 (acerto recebido) = R$ 220.
+    expect(r.balances?.find((b) => b.name === 'Eu')?.amounts).toEqual([{ currency: 'BRL', value: 30000 - 3000 - 5000 }])
+    expect(r.forecast?.items).toEqual([{ date: '2026-12-21', description: 'Van do aeroporto', currency: 'BRL', amount: 24000, part: 6000 }])
+    // Quando eu pagar a van, os outros três me devem R$ 60 cada.
+    expect(r.forecast?.balances).toEqual([{ name: 'Eu', amounts: [{ currency: 'BRL', value: 18000 }] }])
   })
 
   it('somas por categoria e pessoa batem com o resumo', () => {

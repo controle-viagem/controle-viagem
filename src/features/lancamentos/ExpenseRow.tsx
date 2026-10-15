@@ -114,6 +114,9 @@ export function ExpenseRow({ expense: e, categories, methods, people, walletCost
           {foreign && <CurrencyBadge code={e.currency} />}
           {formatMoney(e.amount, e.currency)}
         </span>
+        {e.pending && (
+          <span className="mt-0.5 inline-block rounded bg-amber-50 px-1.5 text-[10px] font-semibold text-amber-600">a pagar</span>
+        )}
         {bottom && (
           <span className={`flex items-center justify-end gap-1 text-xs tabular-nums ${mine.estimated ? VALUE_STYLE.estimado : VALUE_STYLE.apagado}`}>
             {mine.estimated && <CircleAlert size={11} />}

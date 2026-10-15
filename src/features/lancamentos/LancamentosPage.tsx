@@ -31,6 +31,7 @@ function activeLabels(f: ExpenseFilter, names: (id: string) => string): { key: k
   if (f.conferir) out.push({ key: 'conferir', label: 'A conferir na fatura' })
   if (f.divididos) out.push({ key: 'divididos', label: 'Divididos' })
   if (f.outros) out.push({ key: 'outros', label: 'Pagos por outros' })
+  if (f.apagar) out.push({ key: 'apagar', label: 'A pagar' })
   if (f.q) out.push({ key: 'q', label: `"${f.q}"` })
   return out
 }

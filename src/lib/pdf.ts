@@ -176,6 +176,7 @@ export function renderReportPdf(model: ReportModel, title: string, attachments?:
         const body: RowInput[] = rows.map((e) => {
           const row: string[] = [fullDate(e.date).slice(0, 5), `${e.description}\n${e.category}`, e.paidBy, e.participants]
           if (showOriginal) row.push(money(e.total, e.currency), ...(withPart ? [money(e.part, e.currency)] : []))
+          if (e.pending) row[1] += ' (a pagar)'
           if (showBRL) row.push(`${e.estimated ? '~ ' : ''}${brl(withPart ? e.brlPart : e.brlTotal)}`)
           return row
         })
@@ -248,6 +249,18 @@ export function renderReportPdf(model: ReportModel, title: string, attachments?:
         else table(['Carteira', 'Titular', 'Saldo', 'Custo médio', 'Custou'], rows.map((w) => [w.name, w.holder, money(w.units, w.currency), w.avg === null ? '-' : formatRate(w.avg), brl(w.cost)]), {
           columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
         })
+        break
+      }
+      case 'previstos': {
+        const f = model.forecast
+        if (!f) break
+        heading(key)
+        if (f.items.length === 0) { note('Nenhum gasto a pagar.'); break }
+        note('Custos já conhecidos que ainda não foram pagos; viram saldo a acertar quando forem pagos.')
+        table(['Data prevista', 'Gasto', 'Valor', 'Parte'], f.items.map((i) => [fullDate(i.date), i.description, money(i.amount, i.currency), money(i.part, i.currency)]), {
+          columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } },
+        })
+        table(['Pessoa', 'Quando pagos'], f.balances.map((b) => [b.name, b.amounts.length ? b.amounts.map((a) => signed(a.value, a.currency)).join('\n') : '-']), { columnStyles: { 1: { halign: 'right' } }, tableWidth: width * 0.7 })
         break
       }
       case 'orcamento': {

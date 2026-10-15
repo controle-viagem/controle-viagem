@@ -41,7 +41,8 @@ export function useWalletData(): WalletData {
     ])
     wallets.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     // Cada pagador pode ter usado uma carteira diferente; só a parte dele sai dela.
-    const spends: WalletSpend[] = expenses.flatMap((e) =>
+    // Gasto a pagar ainda não saiu da carteira.
+    const spends: WalletSpend[] = expenses.filter((e) => !e.pending).flatMap((e) =>
       payersOf(e)
         .filter((p) => p.amount > 0 && p.methodId && ids.has(p.methodId))
         .map((p) => ({

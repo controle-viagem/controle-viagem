@@ -18,7 +18,10 @@ export function tripBalances(trip: Trip, data: Pick<TripData, 'expenses' | 'sett
   const byParty = partyBalances(b, list)
   // Parte em que "Eu" estou: eu mesmo, ou o meu grupo na visão por grupo.
   const mine = list.find((p) => p.memberIds.includes(ME))
-  return { balances: b, parties: list, byParty, transfers: suggest(byParty), mine }
+  // Previstos: o que cada parte vai receber ou pagar quando os gastos a pagar forem pagos (só informativo).
+  const pendingOnes = data.expenses.filter((e) => e.pending)
+  const forecast = partyBalances(balances(pendingOnes.map((e) => ({ ...e, pending: false })), []), list)
+  return { balances: b, parties: list, byParty, transfers: suggest(byParty), mine, forecast, pendingCount: pendingOnes.length }
 }
 
 /**

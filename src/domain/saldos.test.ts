@@ -90,3 +90,11 @@ describe('vários pagadores', () => {
     expect(total).toBe(0)
   })
 })
+
+describe('gasto a pagar', () => {
+  it('não gera dívida até ser pago', () => {
+    const van = { amount: 30000, currency: 'BRL', payerId: 'eu', split: equal(['eu', 'ana', 'joao']), pending: true }
+    expect(balances([van], []).size).toBe(0)
+    expect(balances([{ ...van, pending: false }], []).get('ana')?.get('BRL')).toBe(-10000)
+  })
+})

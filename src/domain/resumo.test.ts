@@ -125,3 +125,11 @@ describe('parte paga por outra pessoa com a carteira dela', () => {
     expect(r.estimated.count).toBe(0)
   })
 })
+
+describe('gasto a pagar no resumo', () => {
+  it('entra no custo como previsto e aparece à parte', () => {
+    const r = summarize(trip, [expense({ amount: 30000, pending: true }), expense({ amount: 10000 })], '2026-12-23')
+    expect(r.total).toBe(40000)
+    expect(r.pending).toEqual({ count: 1, total: 30000 })
+  })
+})

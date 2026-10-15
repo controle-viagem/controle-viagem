@@ -19,9 +19,11 @@ function add(b: Balances, id: string, currency: string, value: number) {
  * Quem deve a quem, **na moeda de cada gasto**: cada pagador fica com o que pagou a receber; cada participante fica
  * devendo a sua parte. Um acerto abate a dívida de quem pagou e o crédito de quem recebeu, na moeda da dívida.
  */
-export function balances(expenses: Pick<Expense, 'amount' | 'currency' | 'payerId' | 'payers' | 'split'>[], settlements: Pick<Settlement, 'fromId' | 'toId' | 'currency' | 'amount'>[]): Balances {
+export function balances(expenses: Pick<Expense, 'amount' | 'currency' | 'payerId' | 'payers' | 'split' | 'pending'>[], settlements: Pick<Settlement, 'fromId' | 'toId' | 'currency' | 'amount'>[]): Balances {
   const b: Balances = new Map()
   for (const e of expenses) {
+    // Gasto ainda não pago não gera dívida: ninguém deve o que ainda não saiu do bolso de ninguém.
+    if (e.pending) continue
     for (const p of payersOf(e)) add(b, p.personId, e.currency, p.amount)
     for (const [id, share] of sharesOf(e.amount, e.split, payerOf(e))) add(b, id, e.currency, -share)
   }

@@ -68,7 +68,7 @@ export function FiltroModal({ filter, categories, methods, people, currencies, o
     onApply(swapped ? { ...draft, de: draft.ate, ate: draft.de } : draft)
   }
 
-  const check = (key: 'conferir' | 'divididos' | 'outros', label: string, hint: string) => (
+  const check = (key: 'conferir' | 'divididos' | 'outros' | 'apagar', label: string, hint: string) => (
     <label className="flex items-start gap-2 text-sm">
       <input type="checkbox" className="mt-0.5 h-5 w-5 accent-slate-900" checked={!!draft[key]} onChange={(e) => set({ [key]: e.target.checked || undefined })} />
       <span>
@@ -130,6 +130,7 @@ export function FiltroModal({ filter, categories, methods, people, currencies, o
         <div className="space-y-2">
           {check('conferir', 'A conferir na fatura', 'Compras no cartão em reais em outra moeda cujo valor em reais ainda é estimado.')}
           {check('divididos', 'Divididos', 'Gastos divididos com outras pessoas.')}
+          {check('apagar', 'A pagar', 'Custos já conhecidos que ainda não foram pagos.')}
           {check('outros', 'Pagos por outras pessoas', 'Alguém além de você pagou o gasto (todo ou parte).')}
         </div>
 

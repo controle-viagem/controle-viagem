@@ -12,10 +12,10 @@ import { daysBetween, tripDays } from './viagem'
 
 /** Partes que o dono liga ou desliga na prestação de contas. */
 export type SectionKey =
-  | 'resumo' | 'categorias' | 'dias' | 'pessoas' | 'gastos' | 'saldos' | 'sugeridos' | 'acertos' | 'cambio' | 'carteiras' | 'orcamento'
+  | 'resumo' | 'categorias' | 'dias' | 'pessoas' | 'gastos' | 'saldos' | 'sugeridos' | 'acertos' | 'cambio' | 'carteiras' | 'orcamento' | 'previstos'
 
 export const SECTIONS: SectionKey[] = [
-  'resumo', 'categorias', 'dias', 'pessoas', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento',
+  'resumo', 'categorias', 'dias', 'pessoas', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento', 'previstos',
 ]
 
 export const SECTION_LABEL: Record<SectionKey, string> = {
@@ -30,6 +30,7 @@ export const SECTION_LABEL: Record<SectionKey, string> = {
   cambio: 'Câmbio, imposto e gorjeta',
   carteiras: 'Saldos das carteiras',
   orcamento: 'Orçamento',
+  previstos: 'Gastos previstos (a pagar)',
 }
 
 export interface ReportConfig {
@@ -61,7 +62,7 @@ export const PRESET_LABEL: Record<Preset, string> = {
 /** Configurações prontas; o dono ajusta a partir delas. */
 export function presetConfig(preset: Preset, personIds: string[]): ReportConfig {
   const base = { scope: 'envolvidos' as const, valores: 'parte' as const, moeda: 'ambas' as const, nomes: 'agrupar' as const }
-  if (preset === 'completo') return { ...base, personIds: [ME], sections: [...SECTIONS], nomes: 'mostrar' }
+  if (preset === 'completo') return { ...base, personIds: [ME], sections: SECTIONS.filter((s) => s !== 'previstos'), nomes: 'mostrar' }
   if (preset === 'familia') {
     return { ...base, personIds, sections: ['resumo', 'categorias', 'dias', 'pessoas', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento'] }
   }
@@ -95,6 +96,8 @@ export interface ReportExpense {
   brlTotal: number
   brlPart: number
   estimated: boolean
+  /** Ainda a pagar (previsto). */
+  pending: boolean
   paidBy: string
   participants: string
   localTax: number
@@ -136,6 +139,11 @@ export interface ReportModel {
   }
   wallets?: { name: string; holder: string; currency: string; units: number; avg: number | null; cost: number }[]
   budget?: BudgetStatus & { names: Map<string, string>; forNames: string }
+  /** Gastos a pagar que envolvem as pessoas escolhidas e o que caberia a cada uma quando forem pagos. */
+  forecast?: {
+    items: { date: string; description: string; currency: string; amount: number; part: number }[]
+    balances: { name: string; amounts: { currency: string; value: number }[] }[]
+  }
 }
 
 const OTHER = 'outro viajante'
@@ -225,6 +233,7 @@ export function buildReport(input: ReportInput, config: ReportConfig): ReportMod
         brlTotal: full.brl,
         brlPart: part.brl,
         estimated: full.estimated,
+        pending: !!e.pending,
         paidBy,
         participants,
         localTax: e.localTax ?? 0,
@@ -311,6 +320,14 @@ export function buildReport(input: ReportInput, config: ReportConfig): ReportMod
         const w = theirWallets.find((x) => x.id === p.walletId)!
         return { name: w.name, holder: holderLabel(w), currency: p.currency, units: p.units, avg: p.avg, cost: p.cost }
       })
+  }
+  if (has('previstos')) {
+    const pendingOnes = expenses.filter((e) => e.pending)
+    const fb = balances(pendingOnes.map((e) => ({ ...e, pending: false })), [])
+    model.forecast = {
+      items: pendingOnes.map((e) => ({ date: e.date, description: e.description || categoryName(e.categoryId), currency: e.currency, amount: e.amount, part: partOf(e, personIds) })),
+      balances: personIds.map((id) => ({ name: realName(id), amounts: [...(fb.get(id) ?? [])].map(([currency, value]) => ({ currency, value })) })),
+    }
   }
   if (has('orcamento') && trip.budget) {
     const budgetSummary = summarize(trip, input.expenses, today, walletCosts, { personIds: trip.budget.personIds, rateFor })

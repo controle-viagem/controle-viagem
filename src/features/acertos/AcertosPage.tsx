@@ -1,6 +1,6 @@
 import { ArrowRight, Check, Copy, HandCoins, Share2, Trash2, Users } from 'lucide-react'
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../app/AppContext'
 import { Avatar, CurrencyBadge } from '../../components/Badges'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -13,6 +13,7 @@ import { db } from '../../db/db'
 import { PendingCard } from './PendingCard'
 import { usePending } from './usePending'
 import { ME, type Settlement, type Trip } from '../../db/types'
+import { lancamentosLink } from '../../domain/filtro'
 import { settlementText } from '../../domain/textoAcertos'
 import { formatMoney, formatRate, shortDate } from '../../lib/format'
 import { useTripData } from '../lancamentos/useTripData'
@@ -64,7 +65,7 @@ export function AcertosPage() {
   const editingTravelers = params.get('viajantes') === '1'
   const setEditingTravelers = (on: boolean) => setParams(on ? { viajantes: '1' } : {}, { replace: true })
   const grouped = byGroup && trip.groups.length > 0
-  const { balances, parties, byParty, transfers } = tripBalances(trip, data, grouped)
+  const { balances, parties, byParty, transfers, forecast, pendingCount } = tripBalances(trip, data, grouped)
   const names = new Map(parties.map((p) => [p.id, p.name]))
   const personName = (id: string) => data.people.get(id)?.name ?? '—'
   const currencies = [...new Set(['BRL', ...trip.currencies, ...[...byParty.values()].flatMap((a) => [...a.keys()])])]
@@ -115,7 +116,7 @@ export function AcertosPage() {
 
       <PendingCard pending={pending.filter((p) => p.trip.id !== trip.id)} />
 
-      {alone ? (
+      {!data.loaded ? null : alone ? (
         <section className="card space-y-3 p-5 text-center">
           <Users size={36} className="mx-auto text-slate-400" />
           <p className="font-medium">Você está viajando sozinho nesta viagem.</p>
@@ -168,6 +169,37 @@ export function AcertosPage() {
             <span className={VALUE_STYLE.receber}>+ verde</span> tem a receber · <span className={VALUE_STYLE.pagar}>− vermelho</span> tem a pagar.
             {grouped && ' No grupo, o que um membro deve ao outro se anula.'}
           </p>
+
+          {pendingCount > 0 && (() => {
+            const lines = parties.map((p) => ({ p, amounts: [...(forecast.get(p.id) ?? [])] })).filter((l) => l.amounts.length > 0)
+            const brief = lines.map((l) => `${l.p.name} ${l.amounts.map(([c, v]) => signedMoney(v, c)).join(' ')}`).join(', ')
+            return (
+              <details className="card px-4 py-3 text-sm">
+                <summary className="cursor-pointer text-slate-600">
+                  <span className="font-medium text-amber-600">Previstos:</span> {pendingCount} {pendingCount === 1 ? 'gasto a pagar' : 'gastos a pagar'}
+                  {brief && <span className="text-slate-500"> · {brief}</span>}
+                </summary>
+                <div className="mt-2 space-y-2">
+                  <p className="text-xs text-slate-500">
+                    Ainda não entram nos saldos acima. Quando cada gasto for marcado como pago, fica assim a mais para cada um:
+                  </p>
+                  {lines.map(({ p, amounts }) => (
+                    <div key={p.id} className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 truncate">{p.name}</span>
+                      <span className="shrink-0 space-y-0.5 text-right">
+                        {amounts.map(([currency, value]) => (
+                          <span key={currency} className={`block font-semibold tabular-nums ${balanceClass(value)}`}>{signedMoney(value, currency)}</span>
+                        ))}
+                      </span>
+                    </div>
+                  ))}
+                  <Link to={lancamentosLink({ apagar: true })} className="block text-xs font-medium text-slate-600 hover:underline">
+                    Ver os gastos a pagar →
+                  </Link>
+                </div>
+              </details>
+            )
+          })()}
 
           <section>
             <div className="mb-1 flex items-center justify-between px-1">

@@ -20,6 +20,8 @@ export interface ExpenseFilter {
   divididos?: boolean
   /** Gastos em que outra pessoa pagou (tudo ou parte). */
   outros?: boolean
+  /** Ainda não pagos. */
+  apagar?: boolean
   q?: string
 }
 
@@ -45,6 +47,7 @@ export function parseFilter(params: URLSearchParams): ExpenseFilter {
     conferir: params.get('conferir') === '1' || undefined,
     divididos: params.get('divididos') === '1' || undefined,
     outros: params.get('outros') === '1' || undefined,
+    apagar: params.get('apagar') === '1' || undefined,
     q: params.get('q')?.trim() || undefined,
   }
 }
@@ -62,6 +65,7 @@ export function filterToParams(f: ExpenseFilter): URLSearchParams {
   put('conferir', f.conferir ? '1' : undefined)
   put('divididos', f.divididos ? '1' : undefined)
   put('outros', f.outros ? '1' : undefined)
+  put('apagar', f.apagar ? '1' : undefined)
   put('q', f.q?.trim())
   return params
 }
@@ -106,6 +110,7 @@ export function matchesFilter(e: Expense, f: ExpenseFilter, ctx: FilterContext):
   if (f.conferir && !isEstimate(e, ctx.wallet)) return false
   if (f.divididos && !e.split) return false
   if (f.outros && paidBy(e, ME) >= e.amount) return false
+  if (f.apagar && !e.pending) return false
   if (f.q) {
     const names = [e.description, ctx.categories.get(e.categoryId)?.name, e.subcategoryId ? ctx.categories.get(e.subcategoryId)?.name : '']
     if (!plain(names.join(' ')).includes(plain(f.q))) return false

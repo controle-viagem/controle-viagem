@@ -129,6 +129,11 @@ export function InicioPage() {
         <p className="mt-1 text-3xl font-bold tabular-nums">{formatBRL(s.total)}</p>
         {hasOthers && <p className="mt-1 text-xs opacity-75">{onlyMe ? 'Só a sua parte' : 'A soma das partes dessas pessoas'} nos gastos divididos, em reais.</p>}
       </section>
+      {s.pending.count > 0 && (
+        <Link to={lancamentosLink({ apagar: true })} className="-mt-2 block px-1 text-xs text-amber-600 hover:underline">
+          {formatBRL(s.pending.total)} ainda a pagar ({s.pending.count} {s.pending.count === 1 ? 'gasto previsto' : 'gastos previstos'}) →
+        </Link>
+      )}
       {s.estimated.count > 0 && (
         <div className={`-mt-2 space-y-0.5 px-1 text-xs ${VALUE_STYLE.estimado}`}>
           <p className="flex items-center gap-1">

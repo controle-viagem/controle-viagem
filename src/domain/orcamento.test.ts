@@ -5,7 +5,7 @@ import type { TripSummary } from './resumo'
 const trip = { startDate: '2026-12-20', endDate: '2026-12-29' } // 10 dias
 
 const summary = (extra: Partial<TripSummary>): TripSummary => ({
-  total: 0, estimated: { count: 0, total: 0 }, byCurrency: [], byCategory: [], byPhase: { antes: 0, durante: 0, depois: 0 },
+  total: 0, estimated: { count: 0, total: 0 }, pending: { count: 0, total: 0 }, byCurrency: [], byCategory: [], byPhase: { antes: 0, durante: 0, depois: 0 },
   byDay: [], perDay: null, extras: [], fx: { iof: 0, spread: 0 }, ...extra,
 })
 

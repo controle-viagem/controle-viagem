@@ -46,7 +46,7 @@ export function buildSpreadsheet(input: ReportInput, config: ReportConfig, metho
       col('Moeda', 'texto', 7), col('Valor', 'dinheiro', 12), col('Imposto local', 'dinheiro', 12), col('Gorjeta', 'dinheiro', 10),
       col('Quem pagou', 'texto', 22), col('Meio', 'texto', 18), col('Participantes', 'texto', 26),
       ...personIds.map((id) => col(`Parte de ${realName(id)}`, 'dinheiro', 14)),
-      col('Valor em R$', 'dinheiro', 13), col('Parte em R$', 'dinheiro', 13), col('Estimado', 'texto', 9),
+      col('Valor em R$', 'dinheiro', 13), col('Parte em R$', 'dinheiro', 13), col('Estimado', 'texto', 9), col('Situação', 'texto', 10),
     ],
     rows: expenses.map((e) => {
       const payers = payersOf(e)
@@ -65,7 +65,7 @@ export function buildSpreadsheet(input: ReportInput, config: ReportConfig, metho
         units(e.localTax ?? 0), units(e.tip ?? 0), paidBy, meio,
         [...visible, ...(hidden > 0 ? [`+${hidden} ${hidden === 1 ? 'pessoa' : 'pessoas'}`] : [])].join(', '),
         ...personIds.map((id) => units(partOf(e, [id]))),
-        units(full.brl), units(partBRL(e, personIds, input.walletCosts, input.rateFor).brl), full.estimated ? 'sim' : 'não',
+        units(full.brl), units(partBRL(e, personIds, input.walletCosts, input.rateFor).brl), full.estimated ? 'sim' : 'não', e.pending ? 'a pagar' : 'pago',
       ]
     }),
   }

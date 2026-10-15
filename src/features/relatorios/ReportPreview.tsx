@@ -95,7 +95,7 @@ export function ReportPreview({ model, title }: { model: ReportModel; title: str
                       <li key={i} className="flex gap-2 py-1.5">
                         <span className="w-10 shrink-0 text-xs text-slate-500">{shortDate(e.date)}</span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">{e.description}</span>
+                          <span className="block truncate font-medium">{e.description}{e.pending && <span className="text-amber-600"> · a pagar</span>}</span>
                           <span className="block truncate text-xs text-slate-500">pago por {e.paidBy} · {e.participants}</span>
                         </span>
                         <span className="shrink-0 text-right text-xs tabular-nums">
@@ -154,6 +154,25 @@ export function ReportPreview({ model, title }: { model: ReportModel; title: str
               <Section key={key} title={title}>
                 {model.wallets.length === 0 ? empty('Nenhuma carteira com saldo.') : (
                   <Rows rows={model.wallets.map((w) => [`${w.name} (${w.holder})`, `${formatMoney(w.units, w.currency)}${w.avg ? ` · médio ${formatRate(w.avg)}` : ''}`])} />
+                )}
+              </Section>
+            ) : null
+          case 'previstos':
+            return model.forecast ? (
+              <Section key={key} title={title}>
+                {model.forecast.items.length === 0 ? empty('Nenhum gasto a pagar.') : (
+                  <>
+                    <Rows rows={model.forecast.items.map((i) => [`${shortDate(i.date)} · ${i.description}`, `${formatMoney(i.amount, i.currency)} · parte ${formatMoney(i.part, i.currency)}`])} />
+                    <p className="pt-1 text-xs text-slate-500">Quando forem pagos, somam aos saldos:</p>
+                    <Rows rows={model.forecast.balances.map((b) => [
+                      b.name,
+                      b.amounts.length ? (
+                        <span key="a" className="space-y-0.5">
+                          {b.amounts.map((a) => <span key={a.currency} className={`block font-semibold ${balanceClass(a.value)}`}>{signedMoney(a.value, a.currency)}</span>)}
+                        </span>
+                      ) : <span key="z" className="text-slate-500">—</span>,
+                    ])} />
+                  </>
                 )}
               </Section>
             ) : null

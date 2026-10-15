@@ -20,6 +20,8 @@ export interface TripSummary {
   /** Custo total em reais, incluindo os valores ainda estimados. */
   total: number
   estimated: { count: number; total: number }
+  /** Gastos ainda a pagar (já incluídos no total, como previsto). */
+  pending: { count: number; total: number }
   /** Quanto foi gasto em cada moeda, no valor original. Reais primeiro. */
   byCurrency: { currency: string; amount: number }[]
   byCategory: CategoryRow[]
@@ -59,6 +61,7 @@ export function summarize(
 ): TripSummary {
   let total = 0
   const estimated = { count: 0, total: 0 }
+  const pending = { count: 0, total: 0 }
   const currencies = new Map<string, number>()
   const categories = new Map<string, CategoryRow>()
   const byPhase: Record<Phase, number> = { antes: 0, durante: 0, depois: 0 }
@@ -75,6 +78,10 @@ export function summarize(
     const full = fullBRL(e, wallet, rateFor)
     const brl = scale(full.brl)
     total += brl
+    if (e.pending) {
+      pending.count++
+      pending.total += brl
+    }
     if (full.estimated) {
       estimated.count++
       estimated.total += brl
@@ -114,6 +121,7 @@ export function summarize(
   return {
     total,
     estimated,
+    pending,
     byCurrency: [...currencies]
       .map(([currency, amount]) => ({ currency, amount }))
       .sort((a, b) => (a.currency === 'BRL' ? -1 : b.currency === 'BRL' ? 1 : a.currency.localeCompare(b.currency))),

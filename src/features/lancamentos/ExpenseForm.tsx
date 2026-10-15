@@ -64,6 +64,8 @@ export function ExpenseForm({ trip, expense, onClose }: Props) {
   // Viagem encerrada: só consulta.
   const readOnly = !!trip.closed
   const [date, setDate] = useState(expense?.date ?? today)
+  // A pagar: custo já conhecido, ainda não pago (a data vira a data prevista do pagamento).
+  const [pending, setPending] = useState(!!expense?.pending)
   // Gasto novo durante a viagem já vem na moeda dela; antes da viagem (passagens, seguro), em reais.
   const [currency, setCurrency] = useState(
     expense?.currency ?? (phaseOf(today, trip) === 'durante' ? (trip.currencies[0] ?? 'BRL') : 'BRL'),
@@ -202,6 +204,7 @@ export function ExpenseForm({ trip, expense, onClose }: Props) {
       spreadPct: card ? spreadN : undefined,
       iofPct: card ? iofN : undefined,
       brlConfirmed: card ? confirmed : undefined,
+      pending: pending || undefined,
     })
     for (const photo of newReceipts) await addReceipt({ expenseId: savedId, tripId: expense?.tripId ?? trip.id, ...photo })
     for (const id of removedReceipts) await removeReceipt(id)
@@ -275,11 +278,23 @@ export function ExpenseForm({ trip, expense, onClose }: Props) {
             </div>
           </div>
 
+          <label className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-sm">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-slate-900" checked={!pending} onChange={(e) => setPending(!e.target.checked)} />
+            <span>
+              <span className="block font-medium">Já foi pago</span>
+              <span className="block text-xs text-slate-500">
+                {pending
+                  ? 'A pagar: entra no custo da viagem como previsto, mas não sai da carteira nem vira dívida em Acertos até você marcar como pago.'
+                  : 'Desmarque se o custo já é conhecido mas ainda não foi pago (ex.: transfer, aluguel na retirada).'}
+              </span>
+            </span>
+          </label>
+
           <SplitEditor trip={trip} people={people} wallets={methods.filter((m) => m.kind === 'carteira' && !m.archived)} amount={amount} currency={currency} state={split} onChange={setSplit} />
 
           <div className="grid grid-cols-2 gap-3">
             <div className={paidByMe ? '' : 'col-span-2'}>
-              <label className="label" htmlFor="gs-data">Data</label>
+              <label className="label" htmlFor="gs-data">{pending ? 'Pagamento previsto' : 'Data'}</label>
               <input id="gs-data" type="date" className="field" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             {paidByMe && (

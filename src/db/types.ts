@@ -155,6 +155,12 @@ export interface Expense extends Base {
   currency: string
   /** Total pago, em centésimos da moeda da compra, já com imposto local e gorjeta. */
   amount: number
+  /**
+   * Ainda não pago (custo já conhecido, ex.: transfer, aluguel de cadeirinha). Conta no custo da viagem como previsto,
+   * mas não sai de carteira nem gera dívida em Acertos até ser marcado como pago. `dueDate` = pagamento previsto.
+   */
+  pending?: boolean
+  dueDate?: string
   /** Partes do total, só para relatório (mesma moeda da compra). */
   localTax?: number
   tip?: number

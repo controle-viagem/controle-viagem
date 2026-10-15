@@ -187,6 +187,17 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   fixa, carregado só ao exportar): abas Gastos (com "Parte de <pessoa>" por pessoa escolhida), Acertos, Carteiras,
   Saldos e Resumo, com a mesma configuração e privacidade da prestação de contas. Dinheiro em unidades (centavos ÷ 100).
 
+### Gastos a pagar (versão 0.8.0)
+
+- `Expense.pending`: custo já conhecido, ainda não pago (transfer, aluguel na retirada). No formulário, a caixa
+  "Já foi pago" desmarcada; a data vira "Pagamento previsto". Marcar como pago = marcar a caixa de novo.
+- **Entra no custo da viagem** como previsto (`summarize().pending` mostra à parte no Início, com atalho).
+- **Não sai de carteira** (`useWalletData` ignora) e **não gera dívida** (`balances()` pula) até ser pago.
+- **Acertos**: saldos e pagamentos sugeridos só com o que foi pago. Embaixo, linha recolhida "Previstos: N gastos a
+  pagar · …" (só aparece se houver), com o que cada parte receberia ou pagaria (`tripBalances().forecast`).
+- Filtro "A pagar" (`apagar=1`); selo "a pagar" na lista; seção opcional "Gastos previstos" na prestação de contas,
+  **desligada por padrão, inclusive no modelo Completo**; coluna "Situação" (pago / a pagar) na planilha.
+
 ## Decisões para as próximas fases
 
 - **Consulta por viajante** (adiada pelo dono): link só leitura por pessoa/grupo com o extrato embutido (sem
@@ -208,3 +219,5 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - O projeto fica dentro do OneDrive, e o servidor de desenvolvimento às vezes **não percebe arquivos alterados**.
   Na dúvida, reinicie o `npm run dev`.
 - Não há Python na máquina: scripts auxiliares em Node ou PowerShell.
+- Em scripts Node que trocam texto, `String.replace` com texto de substituição interpreta `$'`, `$&` e `$1`
+  (ex.: "R$'" corrompeu um arquivo). Use `split(a).join(b)`, função como substituição, ou a ferramenta de edição.
