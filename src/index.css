@@ -1,0 +1,74 @@
+@import 'tailwindcss';
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+@layer components {
+  .field {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-slate-600;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-slate-900 text-white hover:bg-slate-700;
+  }
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100;
+  }
+  .btn-danger {
+    @apply text-rose-600 hover:bg-rose-50;
+  }
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white;
+  }
+  /* Opção ativa dos seletores em duas ou três partes ("Mês | Ano", "Aporte | Resgate"). */
+  .seg-on {
+    @apply bg-white text-slate-900 shadow-sm;
+  }
+}
+
+/*
+ * Tema escuro. O app inteiro usa a escala de cores do Tailwind, então aqui a escala é redefinida
+ * de uma vez: o que é claro vira escuro e o texto vira claro, sem editar cada tela.
+ * A classe "dark" é posta no <html> por src/lib/theme.ts (e pelo trecho inicial de index.html).
+ * Regra de leitura: quanto mais "elevado" o elemento, mais claro no escuro
+ * (página < cartão < trilhos e bordas).
+ */
+.dark {
+  color-scheme: dark;
+
+  --color-slate-50: oklch(15.5% 0.035 264); /* fundo da página e áreas rebaixadas dentro de cartões */
+  --color-white: oklch(21% 0.04 265); /* cartões, barras e campos; também o texto sobre botões claros */
+  --color-slate-100: oklch(27.5% 0.04 262); /* trilhos, divisórias, realce ao passar o dedo */
+  --color-slate-200: oklch(32% 0.04 260); /* bordas */
+  --color-slate-300: oklch(42% 0.04 258); /* bordas de campos, marcadores vazios */
+  --color-slate-400: oklch(60% 0.04 257); /* ícones e texto apagado */
+  --color-slate-500: oklch(71% 0.035 257); /* texto secundário */
+  --color-slate-600: oklch(80% 0.03 255);
+  --color-slate-700: oklch(88% 0.02 253);
+  --color-slate-900: oklch(96% 0.008 248); /* texto principal e botões principais */
+
+  /* Cores de significado: fundos viram tons fechados; textos e botões, tons claros o bastante para ler. */
+  --color-emerald-50: oklch(26% 0.05 165);
+  --color-emerald-600: oklch(76.5% 0.177 163.2);
+  --color-emerald-700: oklch(84.5% 0.143 165);
+  --color-rose-50: oklch(26% 0.06 15);
+  --color-rose-200: oklch(41% 0.159 10.3);
+  --color-rose-600: oklch(71.2% 0.194 13.4);
+  --color-rose-700: oklch(81% 0.117 11.6);
+  --color-indigo-50: oklch(27% 0.07 277);
+  --color-indigo-600: oklch(67.3% 0.182 276.9);
+  --color-amber-50: oklch(27% 0.05 80);
+  --color-amber-300: oklch(55.5% 0.163 49);
+  --color-amber-600: oklch(82.8% 0.189 84.4);
+}
+
+/* No escuro a opção ativa precisa ser mais clara que o trilho; a inversão de bg-white a deixaria mais escura. */
+.dark .seg-on {
+  background-color: oklch(42% 0.04 258);
+}
