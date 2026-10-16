@@ -25,6 +25,9 @@ export function useReportInput(trip: Trip | undefined): { input: ReportInput | n
       moves: wallet.moves,
       positions: wallet.ledger.positions,
       moveCosts: wallet.ledger.moveCosts,
+      spends: wallet.spends.map((x) => ({ ...x, description: x.expense.description })),
+      walletSettlements: wallet.settlements,
+      settlementCosts: wallet.ledger.settlementCosts,
     },
   }
 }

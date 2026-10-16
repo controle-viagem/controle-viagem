@@ -66,8 +66,8 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   são detalhes opcionais só para relatório), `conversao` (moeda → outra moeda na mesma carteira), `transferencia`
   (mesma moeda entre carteiras, tarifa opcional na moeda, sai da origem além do valor que chega), `ajuste` (`amount`
   com sinal) e `venda` (sobra vendida por reais).
-- **Custo médio móvel por carteira e moeda** (`domain/custoMedio.ts`), em ordem cronológica (data, depois
-  `createdAt`): carga soma unidades e reais pagos; gasto, venda, transferência, conversão e ajuste para menos saem
+- **Custo médio móvel por carteira e moeda** (`domain/custoMedio.ts`), em ordem cronológica (data; no mesmo
+  dia, **entradas antes das saídas** — `dayOrder` em `saldoCarteira.ts`, decisão do dono na 1.2.0; depois `createdAt`): carga soma unidades e reais pagos; gasto, venda, transferência, conversão e ajuste para menos saem
   pelo médio do momento. Transferência e conversão levam esse custo para o destino, então a tarifa do saque encarece
   o dinheiro que chega. Ajuste para mais entra pelo custo informado ou, sem ele, pelo médio atual. Esvaziar a
   carteira leva o custo restante inteiro (sem sobra de arredondamento). Venda mostra ganho/perda = recebido − custo.
@@ -225,6 +225,20 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - **Por meio de pagamento** (`totalsByMethod`): quanto cada pessoa escolhida pagou com cada meio, em reais, sem os
   gastos a pagar. Seção `meios` da prestação de contas (entra no Completo) e quadro em Relatórios. O filtro "Meios"
   da lista acha o meio de qualquer pagador.
+
+### Página da carteira e extrato (versão 1.2.0)
+
+- **Mesmo dia** (decisão do dono): o que só entra (carga, ajuste para mais, acerto recebido) conta antes das trocas
+  (conversão, transferência) e do que só sai (gasto, venda, ajuste para menos, acerto pago), seja qual for a ordem
+  do lançamento. Assim gasto e recarga do mesmo dia não "ficam negativos" e o gasto sai pelo custo da recarga.
+- **Página de cada carteira** (`/carteiras/:id`, `CarteiraPage`): tocar no cartão da carteira abre saldo, médio e o
+  extrato só dela (mais recente primeiro, com o saldo depois de cada linha); "Editar carteira" é um botão. A lista
+  geral continua em Carteiras.
+- **Extrato** (`domain/extrato.ts`, `walletStatement`): todos os movimentos de uma carteira na ordem do custo médio,
+  uma linha por moeda (conversão = duas), com o valor em reais (`Ledger.settlementCosts` para os acertos) e o saldo
+  corrido. Seção opcional "Extrato das carteiras" na prestação de contas (desligada por padrão, inclusive no
+  Completo): uma tabela por carteira e moeda, com saldo anterior, no período escolhido (sem período: seis meses antes
+  da viagem até o fim dela); escolha das carteiras das pessoas escolhidas (`ReportConfig.extratoCarteiras`).
 
 ### Sincronização e cotação PTAX (fase 5, versão 1.0.0)
 

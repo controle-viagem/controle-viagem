@@ -10,6 +10,7 @@ import { MeiosPage } from './features/ajustes/MeiosPage'
 import { SincronizacaoPage } from './features/ajustes/SincronizacaoPage'
 import { AcertosPage } from './features/acertos/AcertosPage'
 import { CalculadoraPage } from './features/calculadora/CalculadoraPage'
+import { CarteiraPage } from './features/carteiras/CarteiraPage'
 import { CarteirasPage } from './features/carteiras/CarteirasPage'
 import { InicioPage } from './features/inicio/InicioPage'
 import { LancamentosPage } from './features/lancamentos/LancamentosPage'
@@ -32,6 +33,7 @@ export function App() {
           <Route path="relatorios/prestacao" element={<Suspense fallback={loading}><PrestacaoPage /></Suspense>} />
           <Route path="calculadora" element={<CalculadoraPage />} />
           <Route path="carteiras" element={<CarteirasPage />} />
+          <Route path="carteiras/:id" element={<CarteiraPage />} />
           <Route path="viagens" element={<ViagensPage />} />
           <Route path="mais" element={<MaisPage />} />
           <Route path="mais/meios" element={<MeiosPage />} />

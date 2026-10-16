@@ -7,6 +7,7 @@ import { db } from '../../db/db'
 import { setLocal } from '../../db/repo'
 import { ME } from '../../db/types'
 import { buildReport, presetConfig, PRESET_LABEL, SECTION_LABEL, SECTIONS, type Preset, type ReportConfig, type SectionKey } from '../../domain/relatorio'
+import { holderLabel, isMine, walletsOf } from '../../domain/titular'
 import { fetchPhoto } from '../../sync/engine'
 import { CostSelector } from '../inicio/CostSelector'
 import { myGroup } from '../acertos/tripBalances'
@@ -227,6 +228,33 @@ export function PrestacaoPage() {
                 </label>
               ))}
             </div>
+            {effective.sections.includes('extrato') && (() => {
+              // Extrato: carteiras das pessoas escolhidas; sem escolha, todas elas.
+              const people = data.travelers.filter((p) => effective.personIds.includes(p.id))
+              const theirs = people.flatMap((p) => walletsOf(p, input?.wallets ?? []))
+              const chosen = effective.extratoCarteiras ?? theirs.map((w) => w.id)
+              const toggle = (id: string) => {
+                const next = chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id]
+                update({ extratoCarteiras: next.length === theirs.length ? undefined : next })
+              }
+              return (
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium text-slate-600">Carteiras no extrato (por data, com saldo corrido, no período escolhido)</p>
+                  {theirs.length === 0 ? (
+                    <p className="text-xs text-slate-500">As pessoas escolhidas não têm carteira cadastrada.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                      {theirs.map((w) => (
+                        <label key={w.id} className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" className="h-4 w-4 accent-slate-900" checked={chosen.includes(w.id)} onChange={() => toggle(w.id)} />
+                          {w.name}{!isMine(w) && <span className="text-xs text-slate-500">({holderLabel(w)})</span>}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-0.5 h-4 w-4 accent-slate-900" checked={!!effective.anexos} onChange={(e) => update({ anexos: e.target.checked || undefined })} />
               <span>

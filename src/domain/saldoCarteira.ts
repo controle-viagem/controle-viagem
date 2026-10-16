@@ -18,8 +18,24 @@ export type WalletEvent =
 const when = (e: WalletEvent) => (e.type === 'move' ? e.move : e.type === 'expense' ? e.expense : e.settlement)
 
 /**
- * Movimentos, gastos e acertos pelas carteiras em ordem cronológica: data, depois o momento do cadastro.
- * Recebe só as saídas de gastos pagas por carteiras; acertos sem carteira controlada ficam de fora.
+ * Ordem dentro do mesmo dia (decisão do dono, 1.2.0): o que só entra na carteira (carga, ajuste para mais, acerto
+ * recebido) vem antes das trocas (conversão, transferência, acerto entre duas carteiras), que vêm antes do que só sai
+ * (gasto, venda, ajuste para menos, acerto pago). Assim, gasto e recarga do mesmo dia não "ficam negativos" só porque
+ * o gasto foi lançado primeiro, e o gasto já sai pelo custo da recarga do dia.
+ */
+function dayOrder(e: WalletEvent): number {
+  if (e.type === 'expense') return 2
+  if (e.type === 'settlement') return e.settlement.fromWalletId ? (e.settlement.toWalletId ? 1 : 2) : 0
+  const m = e.move
+  if (m.kind === 'carga') return 0
+  if (m.kind === 'ajuste') return m.amount >= 0 ? 0 : 2
+  return m.kind === 'venda' ? 2 : 1
+}
+
+/**
+ * Movimentos, gastos e acertos pelas carteiras em ordem cronológica: data; no mesmo dia, entradas antes das saídas
+ * (`dayOrder`); depois, o momento do cadastro. Recebe só as saídas de gastos pagas por carteiras; acertos sem
+ * carteira controlada ficam de fora.
  */
 export function chronological(moves: WalletMove[], expenses: WalletExpense[], settlements: WalletSettlement[] = []): WalletEvent[] {
   const events: WalletEvent[] = [
@@ -27,7 +43,9 @@ export function chronological(moves: WalletMove[], expenses: WalletExpense[], se
     ...expenses.map((expense) => ({ type: 'expense' as const, expense })),
     ...settlements.filter((s) => s.fromWalletId || s.toWalletId).map((settlement) => ({ type: 'settlement' as const, settlement })),
   ]
-  return events.sort((a, b) => when(a).date.localeCompare(when(b).date) || when(a).createdAt.localeCompare(when(b).createdAt))
+  return events.sort(
+    (a, b) => when(a).date.localeCompare(when(b).date) || dayOrder(a) - dayOrder(b) || when(a).createdAt.localeCompare(when(b).createdAt),
+  )
 }
 
 /** Unidades que entram (positivo) ou saem (negativo) de uma moeda numa carteira. Saídas vêm antes. */

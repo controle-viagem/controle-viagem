@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Category, Expense, PaymentMethod, Person, Settlement, Trip } from '../db/types'
 import { buildReport, presetConfig, SECTIONS, type ReportInput } from './relatorio'
+import { ledger } from './custoMedio'
 import { summarize } from './resumo'
 
 const person = (id: string, name: string): Person => ({ id, name, tripId: 'v', createdAt: '', updatedAt: '' })
@@ -56,8 +57,8 @@ describe('prestação de contas', () => {
     expect(r.settlements).toEqual([{ date: '2026-12-22', from: 'Léo', to: 'Eu', currency: 'BRL', amount: 5000, paid: undefined }])
     // Alimentação: meu jantar R$ 150 + minha metade do táxi do Léo R$ 30 = R$ 180 de R$ 200 (90%).
     expect(r.budget?.categories.map((c) => [c.id, c.level])).toEqual([['alim', 'atencao']])
-    // Tudo, menos os gastos previstos (seção opcional, desligada por padrão).
-    expect(SECTIONS.filter((s) => !r.config.sections.includes(s))).toEqual(['previstos'])
+    // Tudo, menos as seções opcionais, desligadas por padrão: gastos previstos e extrato das carteiras.
+    expect(SECTIONS.filter((s) => !r.config.sections.includes(s))).toEqual(['previstos', 'extrato'])
     expect(r.forecast).toBeUndefined()
   })
 
@@ -68,6 +69,26 @@ describe('prestação de contas', () => {
       { person: 'Eu', method: 'Pix', brl: 55000, estimated: false, count: 2 },
       { person: 'Léo', method: 'Outro meio (sem controle)', brl: 6000, estimated: false, count: 1 },
     ])
+  })
+
+  it('extrato das carteiras: por carteira e moeda, com saldo anterior e saldo corrido', () => {
+    const wise = { id: 'wise', name: 'Wise', kind: 'carteira' } as PaymentMethod
+    const carga = { id: 'c1', createdAt: '2', updatedAt: '', kind: 'carga' as const, date: '2026-12-19', walletId: 'wise', currency: 'USD', amount: 10000, brlAmount: 56000, note: '' }
+    const lanche = { id: 'g:eu', createdAt: '1', date: '2026-12-21', methodId: 'wise', currency: 'USD', amount: 3000, description: 'Lanche' }
+    const l = ledger([carga], [lanche])
+    const withWallet = { ...input, wallets: [wise], moves: [carga], spends: [lanche], walletCosts: l.expenseCosts, moveCosts: l.moveCosts, settlementCosts: l.settlementCosts }
+    const base = { ...presetConfig('completo', []), sections: ['extrato'] as typeof SECTIONS }
+    expect(buildReport(withWallet, base).statements).toEqual([{
+      wallet: 'Wise', holder: 'Eu', currency: 'USD', opening: 0, closing: 7000,
+      lines: [
+        { date: '2026-12-19', title: 'Carga', units: 10000, brl: 56000, balance: 10000 },
+        { date: '2026-12-21', title: 'Lanche', units: -3000, brl: 16800, balance: 7000 },
+      ],
+    }])
+    // Com período: a carga fica antes e vira o saldo anterior.
+    expect(buildReport(withWallet, { ...base, de: '2026-12-20' }).statements?.[0]).toMatchObject({ opening: 10000, closing: 7000, lines: [{ title: 'Lanche' }] })
+    // Seção opcional: fora do modelo Completo.
+    expect(presetConfig('completo', []).sections).not.toContain('extrato')
   })
 
   it('gastos previstos: fora dos saldos, à parte na seção própria', () => {

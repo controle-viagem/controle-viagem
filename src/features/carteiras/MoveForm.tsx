@@ -20,6 +20,8 @@ interface Props {
   move?: WalletMove
   /** Carteiras que podem ser escolhidas (as não arquivadas, mais a do movimento em edição). */
   wallets: PaymentMethod[]
+  /** Movimento novo aberto a partir de uma carteira: ela já vem escolhida. */
+  walletId?: string
   data: WalletData
   onClose: () => void
 }
@@ -33,11 +35,11 @@ const HINT: Record<WalletMoveKind, string> = {
   venda: 'A sobra vendida de volta por reais. Sai pelo custo médio e mostra o ganho ou a perda.',
 }
 
-export function MoveForm({ kind, move, wallets, data, onClose }: Props) {
+export function MoveForm({ kind, move, wallets, walletId: initialWallet, data, onClose }: Props) {
   const { trip } = useApp()
   const currencies = [...(trip?.currencies ?? []), ...CURRENCIES.filter((c) => c !== 'BRL' && !trip?.currencies.includes(c))]
   const [date, setDate] = useState(move?.date ?? todayISO())
-  const [walletId, setWalletId] = useState(move?.walletId ?? wallets[0]?.id ?? '')
+  const [walletId, setWalletId] = useState(move?.walletId ?? initialWallet ?? wallets[0]?.id ?? '')
   const [currency, setCurrency] = useState(move?.currency ?? currencies[0] ?? 'USD')
   const [amount, setAmount] = useState(Math.abs(move?.amount ?? 0))
   const [out, setOut] = useState((move?.amount ?? 0) < 0)

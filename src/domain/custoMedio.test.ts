@@ -26,6 +26,18 @@ const pos = (l: ReturnType<typeof ledger>, walletId: string, currency = 'USD') =
   l.positions.find((p) => p.walletId === walletId && p.currency === currency)
 
 describe('custo médio móvel', () => {
+  it('no mesmo dia, a recarga conta antes do gasto, mesmo lançada depois', () => {
+    // O gasto foi lançado primeiro (cadastro mais antigo), a recarga depois, as duas no mesmo dia.
+    const lanche = spend({ date: '2026-12-01', amount: 3000 })
+    const recarga = move({ date: '2026-12-01', amount: 10000, brlAmount: 56000 })
+    const l = ledger([recarga], [lanche])
+    expect(l.expenseCosts.get(lanche.id)).toBe(16800)
+    expect(balances([recarga], [lanche])).toEqual([{ walletId: 'wise', currency: 'USD', units: 7000, negativeOn: null }])
+    // Em dias diferentes, a ordem das datas continua valendo: gasto antes da recarga fica negativo.
+    const ontem = spend({ date: '2026-11-30', amount: 3000 })
+    expect(balances([recarga], [ontem])[0].negativeOn).toBe('2026-11-30')
+  })
+
   it('duas cargas dão médio 5,75 e um gasto de US$ 100 custa R$ 575', () => {
     const jantar = spend({ amount: 10000 })
     const l = ledger(loads, [jantar])
@@ -41,12 +53,12 @@ describe('custo médio móvel', () => {
     expect(pos(l, 'wise')).toMatchObject({ units: 140000, cost: 805500 })
   })
 
-  it('no mesmo dia vale a ordem de cadastro', () => {
+  it('no mesmo dia, todas as cargas do dia entram antes do gasto', () => {
     const mesmoDia = spend({ date: '2026-12-10', amount: 10000 })
     const depois = move({ date: '2026-12-10', amount: 100000, brlAmount: 600000 })
     const l = ledger([...loads, depois], [mesmoDia])
-    // Lançado depois da carga do dia 10 e antes da carga de 6,00: médio 5,75.
-    expect(l.expenseCosts.get(mesmoDia.id)).toBe(57500)
+    // Mesmo lançado antes da carga de 6,00 do dia 10, o gasto sai depois dela: (5.700 + 2.925 + 6.000) / 2.500 = 5,85.
+    expect(l.expenseCosts.get(mesmoDia.id)).toBe(58500)
   })
 
   it('editar uma carga antiga recalcula os gastos depois dela', () => {

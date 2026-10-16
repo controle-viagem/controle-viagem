@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowLeftRight, CircleAlert, HandCoins, Plus, Repeat, ShoppingBag, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import { ArrowDownToLine, ArrowLeftRight, ChevronRight, CircleAlert, HandCoins, Plus, Repeat, ShoppingBag, SlidersHorizontal, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useApp } from '../../app/AppContext'
 import { WALLET_MOVE_LABEL, WALLET_TYPE_LABEL, type PaymentMethod, type Settlement, type WalletMove, type WalletMoveKind } from '../../db/types'
@@ -13,7 +13,7 @@ import { useWalletData, type WalletData, type WalletSpend } from './useWalletDat
 import { useNavigate } from 'react-router-dom'
 import { holderLabel, isMine } from '../../domain/titular'
 
-const KIND_ICON: Record<WalletMoveKind, LucideIcon> = {
+export const KIND_ICON: Record<WalletMoveKind, LucideIcon> = {
   carga: ArrowDownToLine,
   conversao: Repeat,
   transferencia: ArrowLeftRight,
@@ -21,7 +21,7 @@ const KIND_ICON: Record<WalletMoveKind, LucideIcon> = {
   venda: HandCoins,
 }
 
-const KINDS = Object.keys(KIND_ICON) as WalletMoveKind[]
+export const KINDS = Object.keys(KIND_ICON) as WalletMoveKind[]
 
 /** Saldo e custo médio de uma moeda: usado aqui e no Início. */
 export function PositionLine({ position: p, negativeOn }: { position: Omit<Position, 'walletId'>; negativeOn?: string | null }) {
@@ -225,7 +225,7 @@ export function CarteirasPage() {
             )
           })()}
           <section className="card p-4">
-            <button className="flex w-full items-center gap-2 text-left" onClick={() => setWalletForm({ wallet: w })}>
+            <button className="flex w-full items-center gap-2 text-left" onClick={() => navigate(`/carteiras/${w.id}`)} aria-label={`Abrir a carteira ${w.name}`}>
               <MethodIcon method={w} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{w.name}</span>
@@ -234,6 +234,9 @@ export function CarteirasPage() {
                   {!isMine(w) && ` · titular ${holderLabel(w)}`}
                   {w.archived && ' · arquivada'}
                 </span>
+              </span>
+              <span className="flex shrink-0 items-center text-xs font-medium text-slate-500">
+                Movimentos <ChevronRight size={14} />
               </span>
             </button>
             {positions.length > 0 ? (

@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf'
 import { autoTable, type CellHookData, type RowInput } from 'jspdf-autotable'
 import { BUDGET_LEVEL_LABEL } from '../domain/orcamento'
 import { SECTION_LABEL, type ReportModel, type SectionKey } from '../domain/relatorio'
-import { formatBRL, formatMoney, formatRate, fullDate } from './format'
+import { formatBRL, formatMoney, formatRate, fullDate, shortDate } from './format'
 
 // As fontes padrão do PDF só têm os caracteres do português do dia a dia: estes símbolos viram equivalentes simples.
 const clean = (text: string) => text.replace(/≈/g, '~').replace(/[−–]/g, '-').replace(/→/g, '->')
@@ -260,6 +260,24 @@ export function renderReportPdf(model: ReportModel, title: string, attachments?:
         else table(['Carteira', 'Titular', 'Saldo', 'Custo médio', 'Custou'], rows.map((w) => [w.name, w.holder, money(w.units, w.currency), w.avg === null ? '-' : formatRate(w.avg), brl(w.cost)]), {
           columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
         })
+        break
+      }
+      case 'extrato': {
+        const list = model.statements
+        if (!list) break
+        heading(key)
+        if (list.length === 0) { note('Nenhuma carteira escolhida.'); break }
+        note('Todos os movimentos de cada carteira, por data (no mesmo dia, entradas antes das saídas), com o saldo depois de cada um. Em R$: o que a carga custou; nas saídas, o custo médio.')
+        for (const st of list) {
+          ensure(20)
+          doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...INK)
+          doc.text(clean(`${st.wallet} (${st.holder}) · ${st.currency}`), MARGIN, y + 5)
+          y += 5
+          table(['Data', 'Movimento', 'Valor', 'Em R$', 'Saldo'], [
+            ['', 'Saldo anterior', '', '', money(st.opening, st.currency)],
+            ...st.lines.map((l) => [shortDate(l.date), l.title, signed(l.units, st.currency), brl(l.brl), money(l.balance, st.currency)]),
+          ], { columnStyles: { 0: { cellWidth: 14 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } } })
+        }
         break
       }
       case 'previstos': {

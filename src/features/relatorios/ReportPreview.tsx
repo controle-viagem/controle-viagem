@@ -168,6 +168,24 @@ export function ReportPreview({ model, title }: { model: ReportModel; title: str
                 )}
               </Section>
             ) : null
+          case 'extrato':
+            return model.statements ? (
+              <Section key={key} title={title}>
+                {model.statements.length === 0 ? empty('Nenhuma carteira escolhida.') : model.statements.map((st) => (
+                  <div key={`${st.wallet}-${st.currency}`} className="space-y-0.5">
+                    <p className="text-xs font-semibold text-slate-600">{st.wallet} ({st.holder}) · {st.currency}</p>
+                    <Rows rows={[
+                      ['Saldo anterior', formatMoney(st.opening, st.currency)] as [ReactNode, ReactNode],
+                      ...st.lines.slice(0, 30).map((l) => [
+                        `${shortDate(l.date)} · ${l.title}`,
+                        <span key="v" className={l.units > 0 ? VALUE_STYLE.receber : undefined}>{l.units > 0 ? '+' : ''}{formatMoney(l.units, st.currency)} · saldo {formatMoney(l.balance, st.currency)}</span>,
+                      ] as [ReactNode, ReactNode]),
+                    ]} />
+                    {st.lines.length > 30 && empty(`… e mais ${st.lines.length - 30} no PDF.`)}
+                  </div>
+                ))}
+              </Section>
+            ) : null
           case 'previstos':
             return model.forecast ? (
               <Section key={key} title={title}>

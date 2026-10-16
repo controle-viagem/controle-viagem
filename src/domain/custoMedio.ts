@@ -22,6 +22,8 @@ export interface Ledger {
    * médio (conversão, transferência, venda, ajuste para menos).
    */
   moveCosts: Map<string, number>
+  /** Custo em reais de cada acerto em moeda que passou por carteira: o que saiu pelo médio, ou o que entrou. */
+  settlementCosts: Map<string, number>
 }
 
 class Book {
@@ -67,6 +69,7 @@ export function ledger(moves: WalletMove[], expenses: WalletExpense[], settlemen
   }
   const expenseCosts = new Map<string, number>()
   const moveCosts = new Map<string, number>()
+  const settlementCosts = new Map<string, number>()
 
   for (const event of chronological(moves, expenses, settlements)) {
     if (event.type === 'expense') {
@@ -79,10 +82,13 @@ export function ledger(moves: WalletMove[], expenses: WalletExpense[], settlemen
       // transferência) ou, sem carteira de saída controlada, pelo médio de quem recebe (o médio não muda).
       const s = event.settlement
       const cost = s.fromWalletId ? book(s.fromWalletId, s.currency).take(s.amount) : undefined
+      let received: number | undefined
       if (s.toWalletId) {
         const to = book(s.toWalletId, s.currency)
-        to.add(s.amount, cost ?? Math.round(s.amount * (to.avg ?? 0)))
+        received = cost ?? Math.round(s.amount * (to.avg ?? 0))
+        to.add(s.amount, received)
       }
+      settlementCosts.set(s.id, cost ?? received ?? 0)
       continue
     }
     const m = event.move
@@ -122,7 +128,7 @@ export function ledger(moves: WalletMove[], expenses: WalletExpense[], settlemen
     cost,
     avg: units > 0 ? cost / units : avg,
   }))
-  return { positions, expenseCosts, moveCosts }
+  return { positions, expenseCosts, moveCosts, settlementCosts }
 }
 
 /**

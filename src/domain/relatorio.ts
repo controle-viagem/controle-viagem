@@ -8,14 +8,22 @@ import { partOf, payersOf } from './rateio'
 import { summarize } from './resumo'
 import { balances, parties, partyBalances, suggest } from './saldos'
 import { holderLabel, walletsOf } from './titular'
+import { balancesBefore, statementTitle, walletStatement } from './extrato'
+import type { WalletExpense, WalletSettlement } from './saldoCarteira'
 import { daysBetween, tripDays } from './viagem'
+
+function minusDays(iso: string, days: number) {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - days)
+  return d.toISOString().slice(0, 10)
+}
 
 /** Partes que o dono liga ou desliga na prestação de contas. */
 export type SectionKey =
-  | 'resumo' | 'categorias' | 'dias' | 'pessoas' | 'meios' | 'gastos' | 'saldos' | 'sugeridos' | 'acertos' | 'cambio' | 'carteiras' | 'orcamento' | 'previstos'
+  | 'resumo' | 'categorias' | 'dias' | 'pessoas' | 'meios' | 'gastos' | 'saldos' | 'sugeridos' | 'acertos' | 'cambio' | 'carteiras' | 'orcamento' | 'previstos' | 'extrato'
 
 export const SECTIONS: SectionKey[] = [
-  'resumo', 'categorias', 'dias', 'pessoas', 'meios', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento', 'previstos',
+  'resumo', 'categorias', 'dias', 'pessoas', 'meios', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento', 'previstos', 'extrato',
 ]
 
 export const SECTION_LABEL: Record<SectionKey, string> = {
@@ -32,6 +40,7 @@ export const SECTION_LABEL: Record<SectionKey, string> = {
   carteiras: 'Saldos das carteiras',
   orcamento: 'Orçamento',
   previstos: 'Gastos previstos (a pagar)',
+  extrato: 'Extrato das carteiras',
 }
 
 export interface ReportConfig {
@@ -50,6 +59,8 @@ export interface ReportConfig {
   nomes: 'agrupar' | 'mostrar'
   /** Anexar ao PDF as fotos dos comprovantes dos gastos incluídos. */
   anexos?: boolean
+  /** Extrato: carteiras escolhidas (das pessoas escolhidas). Ausente = todas elas. */
+  extratoCarteiras?: string[]
 }
 
 export type Preset = 'completo' | 'prestacao' | 'familia'
@@ -63,7 +74,7 @@ export const PRESET_LABEL: Record<Preset, string> = {
 /** Configurações prontas; o dono ajusta a partir delas. */
 export function presetConfig(preset: Preset, personIds: string[]): ReportConfig {
   const base = { scope: 'envolvidos' as const, valores: 'parte' as const, moeda: 'ambas' as const, nomes: 'agrupar' as const }
-  if (preset === 'completo') return { ...base, personIds: [ME], sections: SECTIONS.filter((s) => s !== 'previstos'), nomes: 'mostrar' }
+  if (preset === 'completo') return { ...base, personIds: [ME], sections: SECTIONS.filter((s) => s !== 'previstos' && s !== 'extrato'), nomes: 'mostrar' }
   if (preset === 'familia') {
     return { ...base, personIds, sections: ['resumo', 'categorias', 'dias', 'pessoas', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento'] }
   }
@@ -83,6 +94,10 @@ export interface ReportInput {
   moves: WalletMove[]
   positions: Position[]
   moveCosts: Map<string, number>
+  /** Para o extrato das carteiras: saídas de gastos (com a descrição), acertos com carteira e o custo deles. */
+  spends?: (WalletExpense & { description?: string })[]
+  walletSettlements?: (WalletSettlement & { note?: string })[]
+  settlementCosts?: Map<string, number>
   /** Todos os meios de pagamento (meus e dos viajantes), para os nomes no resumo por meio. */
   methods?: Map<string, PaymentMethod>
 }
@@ -144,6 +159,8 @@ export interface ReportModel {
   }
   wallets?: { name: string; holder: string; currency: string; units: number; avg: number | null; cost: number }[]
   budget?: BudgetStatus & { names: Map<string, string>; forNames: string }
+  /** Extrato de cada carteira escolhida, por moeda, no período (com o saldo anterior e o saldo corrido). */
+  statements?: { wallet: string; holder: string; currency: string; opening: number; closing: number; lines: { date: string; title: string; units: number; brl: number; balance: number }[] }[]
   /** Gastos a pagar que envolvem as pessoas escolhidas e o que caberia a cada uma quando forem pagos. */
   forecast?: {
     items: { date: string; description: string; currency: string; amount: number; part: number }[]
@@ -334,6 +351,29 @@ export function buildReport(input: ReportInput, config: ReportConfig): ReportMod
         const w = theirWallets.find((x) => x.id === p.walletId)!
         return { name: w.name, holder: holderLabel(w), currency: p.currency, units: p.units, avg: p.avg, cost: p.cost }
       })
+  }
+  if (has('extrato')) {
+    // Período: o escolhido na prestação de contas; sem ele, o mesmo das cargas (seis meses antes até o fim da viagem).
+    const from = config.de ?? minusDays(trip.startDate, 180)
+    const to = config.ate ?? trip.endDate
+    const chosenWallets = config.extratoCarteiras ? theirWallets.filter((w) => config.extratoCarteiras!.includes(w.id)) : theirWallets
+    const nameOfWallet = (id: string) => input.wallets.find((w) => w.id === id)?.name ?? '—'
+    model.statements = chosenWallets.flatMap((w) => {
+      const all = walletStatement(w.id, input.moves, input.spends ?? [], input.walletSettlements ?? [], {
+        expenseCosts: walletCosts, moveCosts: input.moveCosts, settlementCosts: input.settlementCosts ?? new Map(),
+      })
+      const opening = balancesBefore(all, from)
+      const inPeriod = all.filter((l) => l.date >= from && l.date <= to)
+      const currencies = [...new Set([...inPeriod.map((l) => l.currency), ...[...opening].filter(([, v]) => v !== 0).map(([c]) => c)])].sort()
+      return currencies.map((currency) => {
+        const lines = inPeriod.filter((l) => l.currency === currency)
+        const start = opening.get(currency) ?? 0
+        return {
+          wallet: w.name, holder: holderLabel(w), currency, opening: start, closing: lines.at(-1)?.balance ?? start,
+          lines: lines.map((l) => ({ date: l.date, title: statementTitle(l, nameOfWallet), units: l.units, brl: l.brl, balance: l.balance })),
+        }
+      })
+    })
   }
   if (has('previstos')) {
     const pendingOnes = expenses.filter((e) => e.pending)
