@@ -42,7 +42,7 @@ async function save<T extends { id: string; createdAt: string; updatedAt: string
 export const saveTrip = (input: Input<Trip>) => save<Trip>('trips', input)
 
 /** Grava (ou tira, com undefined) o orçamento da viagem. */
-export const setTripBudget = (id: string, budget: Budget | undefined) => db.trips.update(id, { budget, updatedAt: now() })
+export const setTripBudgets = (id: string, budgets: Budget[]) => db.trips.update(id, { budgets, budget: undefined, updatedAt: now() })
 
 /** Encerra (só consulta, acertos liberados) ou reabre a viagem. */
 export const setTripClosed = (id: string, closed: boolean) => db.trips.update(id, { closed, updatedAt: now() })

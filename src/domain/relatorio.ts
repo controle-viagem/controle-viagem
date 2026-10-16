@@ -3,7 +3,7 @@ import type { Position } from './custoMedio'
 import { fullBRL, partBRL, totalsByMethod, type RateLookup } from './custoViagem'
 import type { WalletCosts } from './despesa'
 import { involves, matchesFilter } from './filtro'
-import { budgetStatus, type BudgetStatus } from './orcamento'
+import { budgetFor, budgetStatus, type BudgetStatus } from './orcamento'
 import { partOf, payerOf, payersOf, sharesOf } from './rateio'
 import { summarize } from './resumo'
 import { balances, parties, partyBalances, suggest } from './saldos'
@@ -409,12 +409,14 @@ export function buildReport(input: ReportInput, config: ReportConfig): ReportMod
       balances: personIds.map((id) => ({ name: realName(id), amounts: [...(fb.get(id) ?? [])].map(([currency, value]) => ({ currency, value })) })),
     }
   }
-  if (has('orcamento') && trip.budget) {
-    const budgetSummary = summarize(trip, input.expenses, today, walletCosts, { personIds: trip.budget.personIds, rateFor })
+  // Orçamento das pessoas escolhidas (cada conjunto de pessoas tem o seu, 1.4.0).
+  const budget = budgetFor(trip, personIds)
+  if (has('orcamento') && budget) {
+    const budgetSummary = summarize(trip, input.expenses, today, walletCosts, { personIds: budget.personIds, rateFor })
     model.budget = {
-      ...budgetStatus(trip.budget, budgetSummary, trip),
+      ...budgetStatus(budget, budgetSummary, trip),
       names: new Map([...categories].map(([id, c]) => [id, c.name])),
-      forNames: trip.budget.personIds.map(realName).join(' + '),
+      forNames: budget.personIds.map(realName).join(' + '),
     }
   }
   return model

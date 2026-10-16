@@ -3,17 +3,22 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../../app/AppContext'
 import { CurrencyBadge } from '../../components/Badges'
-import { Breakdown } from '../../components/Breakdown'
+import { Breakdown, MethodBreakdown, NoBudget, PeopleBreakdown } from '../../components/Breakdown'
+import { CategoryBreakdown } from '../../components/CategoryBreakdown'
+import { ME } from '../../db/types'
+import { totalsByMethod } from '../../domain/custoViagem'
+import { involves } from '../../domain/filtro'
 import { balanceClass, signedMoney, VALUE_STYLE } from '../../components/valueStyle'
 import { positiveByCurrency } from '../../domain/custoMedio'
 import { summarize } from '../../domain/resumo'
 import { isEstimate } from '../../domain/despesa'
 import { daysBetween, dayNumber, tripDays, tripStatus } from '../../domain/viagem'
-import { formatBRL, formatMoney, fullDate, todayISO } from '../../lib/format'
+import { formatBRL, formatMoney, fullDate, shortDate, todayISO } from '../../lib/format'
 import { tripBalances } from '../acertos/tripBalances'
 import { CostSelector, useCostPeople } from './CostSelector'
 import { BudgetCard } from '../relatorios/BudgetCard'
-import { budgetStatus } from '../../domain/orcamento'
+import { budgetFor, budgetStatus } from '../../domain/orcamento'
+import { OrcamentoEditor } from '../relatorios/OrcamentoEditor'
 import { Avatar } from '../../components/Badges'
 import { walletsOf } from '../../domain/titular'
 
@@ -22,12 +27,26 @@ import { usePending } from '../acertos/usePending'
 import { CloseTripDialog } from '../viagens/CloseTripDialog'
 import { setTripClosed } from '../../db/repo'
 import { MethodIcon } from '../ajustes/MeiosPage'
-import { HolderTotals, PositionLine, walletPositions } from '../carteiras/CarteirasPage'
+import { walletPositions } from '../carteiras/CarteirasPage'
 import { useWalletData } from '../carteiras/useWalletData'
 import { ExpenseRow } from '../lancamentos/ExpenseRow'
 import { lancamentosLink } from '../lancamentos/LancamentosPage'
 import { useTripData } from '../lancamentos/useTripData'
 import { NoTrip } from '../viagens/NoTrip'
+
+/** Total por moeda, alinhado à direita: o saldo na moeda e, embaixo, quanto vale em reais pelo médio. */
+function TotalAmounts({ totals }: { totals: { currency: string; units: number; cost: number }[] }) {
+  return (
+    <span className="shrink-0 text-right">
+      {totals.map((t) => (
+        <span key={t.currency} className="block leading-tight">
+          <span className={`block font-semibold tabular-nums ${VALUE_STYLE.saldo}`}>{formatMoney(t.units, t.currency)}</span>
+          <span className="block text-xs tabular-nums text-slate-500">≈ {formatBRL(t.cost)}</span>
+        </span>
+      ))}
+    </span>
+  )
+}
 
 /** Quadro do Início: ícone com cor de destaque, rótulo e valor. */
 function Tile({ icon: Icon, tone, label, value, hint, className = '' }: { icon: LucideIcon; tone: string; label: string; value: string; hint?: string; className?: string }) {
@@ -52,6 +71,7 @@ export function InicioPage() {
   // Quem compõe o custo mostrado: escolha guardada por viagem neste aparelho.
   const cost = useCostPeople(trip, data.travelers)
   const [closing, setClosing] = useState(false)
+  const [editingBudget, setEditingBudget] = useState(false)
   const pending = usePending()
   const { expenses, categories, methods, people, walletCosts, rateFor, loaded } = data
   if (!trip) return loaded ? <NoTrip /> : null
@@ -59,9 +79,21 @@ export function InicioPage() {
   const today = todayISO()
   const { personIds, onlyMe, names: costNames } = cost
   const s = summarize(trip, expenses, today, walletCosts, { personIds, rateFor })
-  const budget = trip.budget
-    ? budgetStatus(trip.budget, summarize(trip, expenses, today, walletCosts, { personIds: trip.budget.personIds, rateFor }), trip)
-    : null
+  // Orçamento das pessoas escolhidas: cada conjunto do "Custo de" tem o seu (decisão do dono, 1.4.0).
+  const budgetDef = budgetFor(trip, personIds)
+  const budget = budgetDef ? budgetStatus(budgetDef, s, trip) : null
+  // Últimos gastos: só os que envolvem as pessoas escolhidas (pagaram ou participam).
+  const theirs = expenses.filter((e) => personIds.some((id) => involves(e, id)))
+  // Por meio de pagamento: quanto cada pessoa escolhida pagou com cada meio.
+  const byMethod = totalsByMethod(expenses, personIds, walletCosts, rateFor).map((r) => ({
+    person: people.get(r.personId)?.name ?? '—',
+    method: r.methodId ? (methods.get(r.methodId)?.name ?? '—') : r.personId === ME ? 'Sem meio informado' : 'Outro meio',
+    brl: r.brl,
+    estimated: r.estimated,
+    count: r.count,
+  }))
+  // Projeção: no ritmo atual (média por dia), quanto a viagem deve custar no fim.
+  const projection = s.perDay === null ? null : Math.max(s.total, s.byPhase.antes + s.byPhase.depois + Math.round(s.perDay * tripDays(trip)))
   // Saldo a acertar das pessoas escolhidas, somado (o que uma deve à outra se anula).
   const settle = tripBalances(trip, data, false)
   const balanceOfChosen = new Map<string, number>()
@@ -80,6 +112,10 @@ export function InicioPage() {
       return { person: p, wallets: ws, totals: positiveByCurrency(all), negatives: all.filter((pos) => pos.units < 0).length }
     })
     .filter((h) => h.wallets.length > 0)
+  // Saldo somado de todas as pessoas escolhidas, por moeda (só saldos positivos), com o valor em reais.
+  const allTotals = positiveByCurrency(
+    holders.flatMap((h) => h.totals.map((t) => ({ ...t, walletId: h.person.id }))),
+  )
   // Por pessoa: só com mais de uma pessoa no "Custo de" (decisão do dono, 1.3.0).
   const personTotals = personIds.length > 1
     ? personIds.map((id) => ({ id, name: data.people.get(id)?.name ?? '—', total: summarize(trip, expenses, today, walletCosts, { personIds: [id], rateFor }).total }))
@@ -115,7 +151,7 @@ export function InicioPage() {
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Link to="/relatorios" className="btn btn-ghost ring-1 ring-slate-200 !px-3" aria-label="Relatórios">
+          <Link to="/relatorios" className="btn btn-ghost ring-1 ring-slate-200 !px-3" aria-label="Relatórios (prestação de contas)">
             <ChartColumn size={18} /> <span className="hidden sm:inline">Relatórios</span>
           </Link>
           <Link to="/calculadora" className="btn btn-ghost ring-1 ring-slate-200 !px-3" aria-label="Calculadora">
@@ -141,6 +177,7 @@ export function InicioPage() {
         <p className="text-sm opacity-75">{!hasOthers ? 'Total da viagem' : onlyMe ? 'Seu custo na viagem' : `Custo de ${costNames}`}</p>
         <p className="mt-1 text-3xl font-bold tabular-nums">{formatBRL(s.total)}</p>
         {hasOthers && <p className="mt-1 text-xs opacity-75">{onlyMe ? 'Só a sua parte' : 'A soma das partes dessas pessoas'} nos gastos divididos, em reais.</p>}
+        {projection !== null && <p className="mt-1 text-xs opacity-75">No ritmo atual, deve fechar em {formatBRL(projection)} ({tripDays(trip)} dias).</p>}
       </section>
       {s.pending.count > 0 && (
         <Link to={lancamentosLink({ apagar: true })} className="-mt-2 block px-1 text-xs text-amber-600 hover:underline">
@@ -174,12 +211,6 @@ export function InicioPage() {
         />
       </div>
 
-      {budget && (
-        <Link to="/relatorios" className="block">
-          <BudgetCard status={budget} categories={categories} forNames={trip.budget!.personIds.map((id) => people.get(id)?.name ?? '—').join(' + ')} compact />
-        </Link>
-      )}
-
       {hasOthers && (
         <Link to="/acertos" className="card block p-4 hover:bg-slate-50">
           <div className="flex items-center justify-between">
@@ -207,27 +238,21 @@ export function InicioPage() {
         </Link>
       )}
 
-      {(foreign.length > 0 || s.extras.length > 0) && (
+      {foreign.length > 0 && (
         <section className="card space-y-2 p-4">
           <h2 className="flex items-center gap-2 font-semibold">
             <TrendingUp size={18} className="text-slate-400" /> Em outras moedas
           </h2>
           <ul className="space-y-1.5 text-sm">
-            {foreign.map((c) => {
-              const extra = s.extras.find((x) => x.currency === c.currency)
-              return (
-                <li key={c.currency} className="flex flex-wrap items-center justify-between gap-x-3">
-                  <span className="flex items-center gap-1.5 font-semibold tabular-nums">
-                    <CurrencyBadge code={c.currency} /> {formatMoney(c.amount, c.currency)}
-                  </span>
-                  {extra && (
-                    <span className="text-xs text-slate-500">
-                      imposto {formatMoney(extra.localTax, c.currency)} · gorjeta {formatMoney(extra.tip, c.currency)}
-                    </span>
-                  )}
-                </li>
-              )
-            })}
+            {foreign.map((c) => (
+              <li key={c.currency} className="flex items-center justify-between gap-x-3">
+                <span className="flex items-center gap-1.5 font-semibold tabular-nums">
+                  <CurrencyBadge code={c.currency} /> {formatMoney(c.amount, c.currency)}
+                </span>
+                {/* Equivalência discreta: o que esse gasto custou em reais (cartão, carteira ou referência). */}
+                <span className="text-xs tabular-nums text-slate-500">≈ {formatBRL(c.brl)}</span>
+              </li>
+            ))}
           </ul>
         </section>
       )}
@@ -240,48 +265,129 @@ export function InicioPage() {
               Ver movimentos <ChevronRight size={14} />
             </span>
           </Link>
+          {holders.length > 1 && allTotals.length > 0 && (
+            <div className="mt-3 flex items-start justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+              <span className="text-sm font-medium">Total das pessoas escolhidas</span>
+              <TotalAmounts totals={allTotals} />
+            </div>
+          )}
           {holders.map(({ person, wallets: ws, totals, negatives }) => (
-            <div key={person.id} className="mt-3 space-y-1">
-              {(hasOthers || ws.length > 1) && (
-                <div>
-                  {hasOthers && (
-                    <p className="flex items-center gap-1.5 text-sm font-medium">
-                      <Avatar id={person.id} name={person.name} size="sm" /> {person.name}
-                    </p>
-                  )}
-                  {ws.length > 1 && <HolderTotals totals={totals} negatives={negatives} />}
-                </div>
+            <div key={person.id} className="mt-4">
+              {/* A pessoa e o total dela numa linha; as carteiras dela recuadas embaixo, só com o saldo. */}
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+                  {hasOthers && <Avatar id={person.id} name={person.name} size="sm" />}
+                  <span className="truncate">{hasOthers ? person.name : 'Total'}</span>
+                </span>
+                <TotalAmounts totals={totals} />
+              </div>
+              {negatives > 0 && (
+                <p className="mt-0.5 text-xs text-amber-600">{negatives} saldo{negatives > 1 ? 's' : ''} negativo{negatives > 1 ? 's' : ''} fora do total</p>
               )}
-              {ws.map(({ w, positions }) => (
-                <div key={w.id}>
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                    <MethodIcon method={w} size={14} /> {w.name}
-                  </p>
-                  <ul className="divide-y divide-slate-100">
-                    {positions.map(({ position, negativeOn }) => (
-                      <PositionLine key={position.currency} position={position} negativeOn={negativeOn} />
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              <ul className="mt-1.5 space-y-1 border-l-2 border-slate-100 pl-3">
+                {ws.flatMap(({ w, positions }) =>
+                  positions.map(({ position, negativeOn }) => (
+                    <li key={`${w.id}-${position.currency}`} className="text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="flex min-w-0 items-center gap-1.5 text-slate-600">
+                          <MethodIcon method={w} size={14} /> <span className="truncate">{w.name}</span>
+                        </span>
+                        <span className={`shrink-0 tabular-nums ${position.units < 0 ? VALUE_STYLE.pagar : ''}`}>{formatMoney(position.units, position.currency)}</span>
+                      </div>
+                      {negativeOn && (
+                        <p className="flex items-center gap-1 text-xs text-amber-600">
+                          <CircleAlert size={12} /> {position.units < 0 ? 'Saldo negativo' : 'Ficou negativo'} desde {shortDate(negativeOn)}
+                        </p>
+                      )}
+                    </li>
+                  )),
+                )}
+              </ul>
             </div>
           ))}
         </section>
       )}
 
-      <Breakdown rows={s.byCategory} categories={categories} people={personTotals} />
+      <Breakdown
+        views={[
+          { key: 'categoria', node: <CategoryBreakdown rows={s.byCategory} categories={categories} /> },
+          ...(personTotals.length > 1 ? [{ key: 'pessoa' as const, node: <PeopleBreakdown people={personTotals} /> }] : []),
+          {
+            key: 'orcamento',
+            node: budget ? (
+              <BudgetCard status={budget} categories={categories} forNames={costNames} onEdit={() => setEditingBudget(true)} />
+            ) : (
+              <NoBudget names={costNames} onDefine={() => setEditingBudget(true)} />
+            ),
+          },
+          { key: 'meio', node: <MethodBreakdown rows={byMethod} onlyMe={onlyMe} /> },
+        ]}
+      />
 
-      {expenses.length > 0 && (
+      {theirs.length > 0 && (
         <section>
           <div className="mb-1 flex items-baseline justify-between px-1">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Últimos gastos</h2>
-            <Link to="/lancamentos" className="text-xs font-medium text-slate-500 hover:underline">Ver todos</Link>
+            <Link
+              to={personIds.length === 1 && personIds[0] === ME ? '/lancamentos' : lancamentosLink({ pessoa: personIds })}
+              className="text-xs font-medium text-slate-500 hover:underline"
+            >
+              Ver todos
+            </Link>
           </div>
           <div className="card divide-y divide-slate-100 overflow-hidden">
-            {expenses.slice(0, 5).map((e) => (
+            {theirs.slice(0, 5).map((e) => (
               <ExpenseRow key={e.id} expense={e} categories={categories} methods={methods} people={people} walletCosts={walletCosts} rateFor={rateFor} />
             ))}
           </div>
+        </section>
+      )}
+
+      {(s.fx.iof > 0 || s.fx.spread > 0 || s.extras.length > 0) && (
+        <section className="card space-y-2 p-4">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <TrendingUp size={18} className="text-slate-400" /> Câmbio, imposto e gorjeta
+          </h2>
+          <dl className="space-y-1 text-sm">
+            {(s.fx.iof > 0 || s.fx.spread > 0) && (
+              <>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-600">IOF nos cartões que cobram em reais</dt>
+                  <dd className="font-medium tabular-nums">{formatBRL(s.fx.iof)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-600">Spread dos bancos nesses cartões</dt>
+                  <dd className="font-medium tabular-nums">{formatBRL(s.fx.spread)}</dd>
+                </div>
+              </>
+            )}
+            {s.extras.map((x) => (
+              <div key={x.currency} className="space-y-1">
+                {x.localTax > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="flex items-center gap-1.5 text-slate-600"><CurrencyBadge code={x.currency} /> Imposto local</dt>
+                    <dd className="text-right tabular-nums">
+                      <span className="font-medium">{formatMoney(x.localTax, x.currency)}</span>
+                      <span className="ml-1.5 text-xs text-slate-500">≈ {formatBRL(x.localTaxBRL)}</span>
+                    </dd>
+                  </div>
+                )}
+                {x.tip > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="flex items-center gap-1.5 text-slate-600"><CurrencyBadge code={x.currency} /> Gorjetas</dt>
+                    <dd className="text-right tabular-nums">
+                      <span className="font-medium">{formatMoney(x.tip, x.currency)}</span>
+                      <span className="ml-1.5 text-xs text-slate-500">≈ {formatBRL(x.tipBRL)}</span>
+                    </dd>
+                  </div>
+                )}
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs text-slate-500">
+            Na parte de quem está no "Custo de". IOF e spread: o que os cartões cobraram a mais que a cotação do dia. Imposto e
+            gorjeta em reais: pela cotação que cada gasto usou.
+          </p>
         </section>
       )}
 
@@ -291,6 +397,9 @@ export function InicioPage() {
         </button>
       )}
       {closing && <CloseTripDialog trip={trip} onClose={() => setClosing(false)} />}
+      {editingBudget && (
+        <OrcamentoEditor trip={trip} personIds={personIds} names={costNames} categories={[...categories.values()]} onClose={() => setEditingBudget(false)} />
+      )}
     </div>
   )
 }

@@ -56,3 +56,22 @@ export function budgetStatus(budget: Budget, summary: TripSummary, trip: Pick<Tr
   const worst = [total, ...categories].reduce<BudgetLevel>((w, l) => (l && ORDER[l.level] > ORDER[w] ? l.level : w), 'ok')
   return { total, categories, worst }
 }
+
+// ---------- um orçamento por conjunto de pessoas (1.4.0) ----------
+// Cada combinação do "Custo de" (só eu, o casal, um grupo…) pode ter o seu orçamento. O antigo `trip.budget` vale
+// como o primeiro da lista até a viagem ganhar `budgets`.
+
+const sameSet = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x) => b.includes(x))
+
+/** Todos os orçamentos da viagem. */
+export const budgetsOf = (trip: Pick<Trip, 'budget' | 'budgets'>): Budget[] => trip.budgets ?? (trip.budget ? [trip.budget] : [])
+
+/** O orçamento das pessoas escolhidas (mesmo conjunto, em qualquer ordem), se houver. */
+export const budgetFor = (trip: Pick<Trip, 'budget' | 'budgets'>, personIds: readonly string[]) =>
+  budgetsOf(trip).find((b) => sameSet(b.personIds, personIds))
+
+/** A lista com o orçamento dessas pessoas trocado (ou tirado, com `budget` ausente). */
+export function withBudget(trip: Pick<Trip, 'budget' | 'budgets'>, personIds: readonly string[], budget?: Budget): Budget[] {
+  const others = budgetsOf(trip).filter((b) => !sameSet(b.personIds, personIds))
+  return budget ? [...others, budget] : others
+}

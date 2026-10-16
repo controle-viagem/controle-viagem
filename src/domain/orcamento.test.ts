@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { budgetStatus, levelOf } from './orcamento'
+import { budgetFor, budgetsOf, budgetStatus, levelOf, withBudget } from './orcamento'
 import type { TripSummary } from './resumo'
 
 const trip = { startDate: '2026-12-20', endDate: '2026-12-29' } // 10 dias
@@ -37,5 +37,27 @@ describe('orçamento da viagem', () => {
     expect(r.categories.map((c) => [c.id, c.level])).toEqual([['alim', 'estourou'], ['transp', 'ok']])
     expect(r.total).toBeNull()
     expect(r.worst).toBe('estourou')
+  })
+})
+
+describe('um orçamento por conjunto de pessoas', () => {
+  const eu = { personIds: ['eu'], total: 100000, byCategory: {} }
+  const casal = { personIds: ['eu', 'iza'], total: 300000, byCategory: {} }
+
+  it('o antigo orçamento único vale como o primeiro da lista', () => {
+    expect(budgetsOf({ budget: eu })).toEqual([eu])
+    expect(budgetsOf({ budget: eu, budgets: [casal] })).toEqual([casal])
+  })
+
+  it('acha pelo conjunto de pessoas, em qualquer ordem', () => {
+    const trip = { budgets: [eu, casal] }
+    expect(budgetFor(trip, ['iza', 'eu'])).toBe(casal)
+    expect(budgetFor(trip, ['iza'])).toBeUndefined()
+  })
+
+  it('troca ou tira só o orçamento daquelas pessoas', () => {
+    const novo = { ...casal, total: 350000 }
+    expect(withBudget({ budgets: [eu, casal] }, ['iza', 'eu'], novo)).toEqual([eu, novo])
+    expect(withBudget({ budget: eu }, ['eu'])).toEqual([])
   })
 })

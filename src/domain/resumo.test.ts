@@ -31,8 +31,9 @@ describe('resumo da viagem', () => {
 
   it('valor original por moeda, reais primeiro', () => {
     expect(s.byCurrency).toEqual([
-      { currency: 'BRL', amount: 504798 },
-      { currency: 'USD', amount: 15000 },
+      { currency: 'BRL', amount: 504798, brl: 504798 },
+      // E quanto o que foi gasto em dólar custou em reais (cartão estimado + conferido).
+      { currency: 'USD', amount: 15000, brl: 59202 + 30000 },
     ])
   })
 
@@ -64,12 +65,13 @@ describe('resumo da viagem', () => {
     const w = summarize(trip, [...expenses, wise], '2026-12-23', new Map([['wise1:eu', 57500]]))
     expect(w.total).toBe(s.total + 57500)
     expect(w.estimated).toEqual(s.estimated)
-    expect(w.byCurrency[1]).toEqual({ currency: 'USD', amount: 25000 })
+    expect(w.byCurrency[1]).toMatchObject({ currency: 'USD', amount: 25000 })
     expect(w.fx).toEqual(s.fx)
   })
 
   it('imposto local, gorjeta e custo do câmbio', () => {
-    expect(s.extras).toEqual([{ currency: 'USD', localTax: 700, tip: 1800 }])
+    // Em reais, pela fração no custo do jantar (R$ 592,02): 7% de imposto e 18% de gorjeta.
+    expect(s.extras).toEqual([{ currency: 'USD', localTax: 700, tip: 1800, localTaxBRL: 4144, tipBRL: 10656 }])
     expect(s.fx).toEqual({ iof: 2002 + 1014, spread: 2200 })
   })
 })
@@ -85,7 +87,7 @@ describe('meu custo com gastos divididos', () => {
     const r = summarize(trip, [parking, dinner], '2026-12-23', new Map(), { rateFor })
     expect(r.total).toBe(10000 + 17250)
     expect(r.estimated).toEqual({ count: 1, total: 17250 })
-    expect(r.byCurrency).toEqual([{ currency: 'BRL', amount: 10000 }, { currency: 'USD', amount: 3000 }])
+    expect(r.byCurrency).toEqual([{ currency: 'BRL', amount: 10000, brl: 10000 }, { currency: 'USD', amount: 3000, brl: 17250 }])
   })
 
   it('custo de um grupo soma a parte de cada membro', () => {

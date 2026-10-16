@@ -230,7 +230,7 @@ export function ReportPreview({ model, title }: { model: ReportModel; title: str
                 ])} />
               </Section>
             ) : config.sections.includes('orcamento') ? (
-              <Section key={key} title={title}>{empty('A viagem não tem orçamento definido (Relatórios → Orçamento).')}</Section>
+              <Section key={key} title={title}>{empty('Essas pessoas não têm orçamento (Início → Por orçamento, com elas no "Custo de").')}</Section>
             ) : null
         }
       })}

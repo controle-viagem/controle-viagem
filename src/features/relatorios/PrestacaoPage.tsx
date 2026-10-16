@@ -161,7 +161,7 @@ export function PrestacaoPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Link to="/relatorios" className="btn btn-ghost !p-2" aria-label="Voltar">
+        <Link to="/" className="btn btn-ghost !p-2" aria-label="Voltar ao Início">
           <ChevronLeft size={20} />
         </Link>
         <div className="min-w-0 flex-1">

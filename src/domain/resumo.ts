@@ -22,16 +22,19 @@ export interface TripSummary {
   estimated: { count: number; total: number }
   /** Gastos ainda a pagar (já incluídos no total, como previsto). */
   pending: { count: number; total: number }
-  /** Quanto foi gasto em cada moeda, no valor original. Reais primeiro. */
-  byCurrency: { currency: string; amount: number }[]
+  /** Quanto foi gasto em cada moeda, no valor original e quanto isso custou em reais. Reais primeiro. */
+  byCurrency: { currency: string; amount: number; brl: number }[]
   byCategory: CategoryRow[]
   byPhase: Record<Phase, number>
   /** Dias da viagem com gasto, em ordem. */
   byDay: { date: string; total: number }[]
   /** Média por dia durante a viagem, até hoje (ou até o fim); null antes de começar. */
   perDay: number | null
-  /** Imposto local e gorjeta, por moeda (só as que tiveram algum). */
-  extras: { currency: string; localTax: number; tip: number }[]
+  /**
+   * Imposto local e gorjeta, por moeda (só as que tiveram algum), e quanto custaram em reais: a fração deles no
+   * custo em reais de cada gasto (a cotação que o gasto usou, cartão ou custo médio).
+   */
+  extras: { currency: string; localTax: number; tip: number; localTaxBRL: number; tipBRL: number }[]
   /** Custo do câmbio nos cartões em reais. */
   fx: { iof: number; spread: number }
 }
@@ -62,11 +65,11 @@ export function summarize(
   let total = 0
   const estimated = { count: 0, total: 0 }
   const pending = { count: 0, total: 0 }
-  const currencies = new Map<string, number>()
+  const currencies = new Map<string, { amount: number; brl: number }>()
   const categories = new Map<string, CategoryRow>()
   const byPhase: Record<Phase, number> = { antes: 0, durante: 0, depois: 0 }
   const days = new Map<string, number>()
-  const extras = new Map<string, { currency: string; localTax: number; tip: number }>()
+  const extras = new Map<string, TripSummary['extras'][number]>()
   const fx = { iof: 0, spread: 0 }
 
   for (const e of expenses) {
@@ -86,7 +89,8 @@ export function summarize(
       estimated.count++
       estimated.total += brl
     }
-    currencies.set(e.currency, (currencies.get(e.currency) ?? 0) + part)
+    const cur = currencies.get(e.currency) ?? { amount: 0, brl: 0 }
+    currencies.set(e.currency, { amount: cur.amount + part, brl: cur.brl + brl })
 
     let row = categories.get(e.categoryId)
     if (!row) categories.set(e.categoryId, (row = { id: e.categoryId, total: 0, share: 0, subs: [] }))
@@ -102,9 +106,11 @@ export function summarize(
 
     if (e.localTax || e.tip) {
       let x = extras.get(e.currency)
-      if (!x) extras.set(e.currency, (x = { currency: e.currency, localTax: 0, tip: 0 }))
+      if (!x) extras.set(e.currency, (x = { currency: e.currency, localTax: 0, tip: 0, localTaxBRL: 0, tipBRL: 0 }))
       x.localTax += scale(e.localTax ?? 0)
       x.tip += scale(e.tip ?? 0)
+      x.localTaxBRL += Math.round((brl * (e.localTax ?? 0)) / e.amount)
+      x.tipBRL += Math.round((brl * (e.tip ?? 0)) / e.amount)
     }
     if (isForeign(e) && paidBy(e, ME) > 0) {
       const cost = fxCost(e)
@@ -123,7 +129,7 @@ export function summarize(
     estimated,
     pending,
     byCurrency: [...currencies]
-      .map(([currency, amount]) => ({ currency, amount }))
+      .map(([currency, v]) => ({ currency, amount: v.amount, brl: v.brl }))
       .sort((a, b) => (a.currency === 'BRL' ? -1 : b.currency === 'BRL' ? 1 : a.currency.localeCompare(b.currency))),
     byCategory,
     byPhase,

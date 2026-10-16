@@ -49,8 +49,10 @@ export interface Trip extends Base {
   localTaxPct?: number
   /** Gorjeta padrão (%), sugerida quando o gasto tem gorjeta. */
   tipPct?: number
-  /** Orçamento da viagem (em reais), para o custo das pessoas escolhidas. */
+  /** Orçamento antigo (um só por viagem). Lido como o primeiro de `budgets`; gravar sempre em `budgets`. */
   budget?: Budget
+  /** Orçamentos da viagem (em reais), um para cada conjunto de pessoas do "Custo de" (decisão do dono, 1.4.0). */
+  budgets?: Budget[]
   /** Encerrada pelo dono: só consulta (sem gastos novos); os acertos continuam liberados. */
   closed?: boolean
   archived: boolean

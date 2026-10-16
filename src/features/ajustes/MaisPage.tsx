@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 const READY = [
   { to: '/viagens', label: 'Viagens', hint: 'Cadastrar, abrir e editar viagens', icon: Luggage },
-  { to: '/relatorios', label: 'Relatórios e prestação de contas', hint: 'Gráficos, orçamento, câmbio e o PDF para mandar aos viajantes', icon: ChartColumn },
+  { to: '/relatorios', label: 'Relatórios (prestação de contas)', hint: 'O PDF e a planilha para mandar aos viajantes', icon: ChartColumn },
   { to: '/calculadora', label: 'Calculadora', hint: 'Preço lá fora em reais, com imposto e gorjeta: carteira ou cartão?', icon: Calculator },
   { to: '/carteiras', label: 'Carteiras', hint: 'Cartão multimoeda e espécie: cargas, saldos e custo médio', icon: WalletCards },
   { to: '/mais/meios', label: 'Meios de pagamento', hint: 'Pix, cartões em reais, carteiras multimoeda', icon: CreditCard },

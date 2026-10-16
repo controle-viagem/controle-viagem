@@ -17,7 +17,6 @@ import { LancamentosPage } from './features/lancamentos/LancamentosPage'
 import { ViagensPage } from './features/viagens/ViagensPage'
 
 // Gráficos e PDF pesam: as telas de relatórios só carregam quando são abertas.
-const RelatoriosPage = lazy(() => import('./features/relatorios/RelatoriosPage').then((m) => ({ default: m.RelatoriosPage })))
 const PrestacaoPage = lazy(() => import('./features/relatorios/PrestacaoPage').then((m) => ({ default: m.PrestacaoPage })))
 const loading = <p className="p-8 text-center text-sm text-slate-500">Carregando…</p>
 
@@ -29,8 +28,9 @@ export function App() {
           <Route index element={<InicioPage />} />
           <Route path="lancamentos" element={<LancamentosPage />} />
           <Route path="acertos" element={<AcertosPage />} />
-          <Route path="relatorios" element={<Suspense fallback={loading}><RelatoriosPage /></Suspense>} />
-          <Route path="relatorios/prestacao" element={<Suspense fallback={loading}><PrestacaoPage /></Suspense>} />
+          {/* Relatórios = prestação de contas (a antiga tela de relatórios foi para o Início na 1.4.0). */}
+          <Route path="relatorios" element={<Suspense fallback={loading}><PrestacaoPage /></Suspense>} />
+          <Route path="relatorios/prestacao" element={<Navigate to="/relatorios" replace />} />
           <Route path="calculadora" element={<CalculadoraPage />} />
           <Route path="carteiras" element={<CarteirasPage />} />
           <Route path="carteiras/:id" element={<CarteiraPage />} />

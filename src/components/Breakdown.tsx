@@ -1,65 +1,123 @@
-import { useState } from 'react'
-import type { Category } from '../db/types'
-import type { CategoryRow } from '../domain/resumo'
+import { CreditCard, PiggyBank } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { formatBRL } from '../lib/format'
 import { useTheme } from '../lib/theme'
 import { Avatar } from './Badges'
-import { CategoryBreakdown } from './CategoryBreakdown'
 import { CHART_THEME } from './chartTheme'
+import { VALUE_STYLE } from './valueStyle'
 
-interface Props {
-  rows: CategoryRow[]
-  categories: Map<string, Category>
-  /** Custo de cada pessoa escolhida no "Custo de". Com uma pessoa só, não há visão por pessoa. */
-  people: { id: string; name: string; total: number }[]
+export type ViewKey = 'categoria' | 'pessoa' | 'orcamento' | 'meio'
+
+export const VIEW_LABEL: Record<ViewKey, string> = {
+  categoria: 'Por categoria',
+  pessoa: 'Por pessoa',
+  orcamento: 'Por orçamento',
+  meio: 'Por meio de pagamento',
 }
 
 /**
- * "Por categoria" e "Por pessoa" no mesmo quadro, com dois botões (decisão do dono, 1.3.0). A visão por pessoa só
- * existe com mais de uma pessoa escolhida e mostra apenas as escolhidas.
+ * Um quadro com várias visões do custo (decisão do dono, 1.4.0): botões lado a lado no computador e lista suspensa no
+ * celular, onde quatro botões não cabem. Só aparecem as visões passadas (ex.: "Por pessoa" só com mais de uma).
  */
-export function Breakdown({ rows, categories, people }: Props) {
-  const [view, setView] = useState<'categoria' | 'pessoa'>('categoria')
-  const chart = CHART_THEME[useTheme()]
-  const byPerson = people.length > 1
-  const current = byPerson ? view : 'categoria'
-  const max = Math.max(1, ...people.map((p) => p.total))
-  const sorted = [...people].sort((a, b) => b.total - a.total)
-
+export function Breakdown({ views }: { views: { key: ViewKey; node: ReactNode }[] }) {
+  const [view, setView] = useState<ViewKey>('categoria')
+  const current = views.find((v) => v.key === view) ?? views[0]
+  if (!current) return null
   return (
     <div className="space-y-2">
-      {byPerson && (
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-200/60 p-1 text-sm font-semibold">
-          <button type="button" className={`rounded-md py-1.5 ${current === 'categoria' ? 'seg-on' : 'text-slate-600'}`} onClick={() => setView('categoria')}>
-            Por categoria
-          </button>
-          <button type="button" className={`rounded-md py-1.5 ${current === 'pessoa' ? 'seg-on' : 'text-slate-600'}`} onClick={() => setView('pessoa')}>
-            Por pessoa
-          </button>
-        </div>
-      )}
-      {current === 'categoria' ? (
-        <CategoryBreakdown rows={rows} categories={categories} />
-      ) : (
-        <section className="card p-4">
-          <h2 className="mb-1 font-semibold">Por pessoa</h2>
-          <p className="mb-3 text-xs text-slate-500">Quanto custou a parte de cada pessoa escolhida, em reais.</p>
-          <ul className="space-y-2.5">
-            {sorted.map((p) => (
-              <li key={p.id}>
-                <div className="flex items-center gap-2 text-sm">
-                  <Avatar id={p.id} name={p.name} size="sm" />
-                  <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                  <span className="font-medium tabular-nums">{formatBRL(p.total)}</span>
-                </div>
-                <div className="ml-8 mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full" style={{ width: `${(p.total / max) * 100}%`, background: chart.series }} />
-                </div>
-              </li>
+      {views.length > 1 && (
+        <>
+          <select
+            className="field sm:hidden"
+            aria-label="Visão"
+            value={current.key}
+            onChange={(e) => setView(e.target.value as ViewKey)}
+          >
+            {views.map((v) => (
+              <option key={v.key} value={v.key}>{VIEW_LABEL[v.key]}</option>
             ))}
-          </ul>
-        </section>
+          </select>
+          <div className="hidden gap-1 rounded-lg bg-slate-200/60 p-1 text-sm font-semibold sm:grid" style={{ gridTemplateColumns: `repeat(${views.length}, minmax(0, 1fr))` }}>
+            {views.map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                className={`truncate rounded-md px-1 py-1.5 ${v.key === current.key ? 'seg-on' : 'text-slate-600'}`}
+                onClick={() => setView(v.key)}
+              >
+                {VIEW_LABEL[v.key]}
+              </button>
+            ))}
+          </div>
+        </>
       )}
+      {current.node}
     </div>
+  )
+}
+
+/** Custo de cada pessoa escolhida, em reais, com barras. */
+export function PeopleBreakdown({ people }: { people: { id: string; name: string; total: number }[] }) {
+  const chart = CHART_THEME[useTheme()]
+  const max = Math.max(1, ...people.map((p) => p.total))
+  return (
+    <section className="card p-4">
+      <h2 className="mb-1 font-semibold">Por pessoa</h2>
+      <p className="mb-3 text-xs text-slate-500">Quanto custou a parte de cada pessoa escolhida, em reais.</p>
+      <ul className="space-y-2.5">
+        {[...people].sort((a, b) => b.total - a.total).map((p) => (
+          <li key={p.id}>
+            <div className="flex items-center gap-2 text-sm">
+              <Avatar id={p.id} name={p.name} size="sm" />
+              <span className="min-w-0 flex-1 truncate">{p.name}</span>
+              <span className="font-medium tabular-nums">{formatBRL(p.total)}</span>
+            </div>
+            <div className="ml-8 mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full" style={{ width: `${(p.total / max) * 100}%`, background: chart.series }} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** Quanto cada pessoa escolhida pagou com cada meio, em reais. */
+export function MethodBreakdown({ rows, onlyMe }: { rows: { person: string; method: string; brl: number; estimated: boolean; count: number }[]; onlyMe: boolean }) {
+  return (
+    <section className="card p-4">
+      <h2 className="mb-1 flex items-center gap-2 font-semibold">
+        <CreditCard size={18} className="text-slate-400" /> Por meio de pagamento
+      </h2>
+      <p className="mb-3 text-xs text-slate-500">
+        Quanto {onlyMe ? 'você pagou' : 'cada pessoa escolhida pagou'} com cada meio, em reais (sem os gastos a pagar).
+      </p>
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-500">Nenhum pagamento ainda.</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 text-sm">
+          {rows.map((m, i) => (
+            <li key={i} className="flex items-center justify-between gap-3 py-1.5">
+              <span className="min-w-0">
+                <span className="block truncate">{m.method}</span>
+                <span className="block truncate text-xs text-slate-500">{onlyMe ? '' : `${m.person} · `}{m.count} {m.count === 1 ? 'gasto' : 'gastos'}</span>
+              </span>
+              <span className={`shrink-0 font-medium tabular-nums ${m.estimated ? VALUE_STYLE.estimado : ''}`}>{m.estimated ? '≈ ' : ''}{formatBRL(m.brl)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+/** Sem orçamento para as pessoas escolhidas: convite para definir. */
+export function NoBudget({ names, onDefine }: { names: string; onDefine: () => void }) {
+  return (
+    <section className="card flex items-center gap-3 p-4">
+      <PiggyBank size={20} className="shrink-0 text-slate-400" />
+      <p className="min-w-0 flex-1 text-sm text-slate-500">Sem orçamento para {names}. Defina um limite total ou por categoria.</p>
+      <button type="button" className="btn btn-ghost shrink-0 ring-1 ring-slate-200" onClick={onDefine}>Definir</button>
+    </section>
   )
 }

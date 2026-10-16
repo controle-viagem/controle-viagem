@@ -184,12 +184,12 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - **PDF** (`lib/pdf.ts`, jsPDF 4.2.1 + jspdf-autotable 5.0.9, versões fixas): carregado só ao gerar. Fontes padrão do
   PDF: os acentos do português saem certos; `≈ − →` viram `~ - ->` (`clean`). Compartilhar com
   `navigator.share({ files })` quando o aparelho deixa; senão, baixar.
-- **Relatórios** (`/relatorios`, `lazy`): mesmo "Custo de" do Início (`features/inicio/CostSelector.tsx`), resumo com
-  projeção, orçamento, gráfico por dia (Recharts; cor validada em `components/chartTheme.ts` — não trocar sem validar),
-  categorias, por pessoa e câmbio (IOF e spread dos cartões, cotação efetiva das cargas, imposto e gorjeta).
-- **Orçamento** (`Trip.budget`, `domain/orcamento.ts`): limites em reais, total e por categoria, para o custo de quem
-  o dono escolher. Atenção a partir de 80%, estourou acima de 100%; projeção = antes + depois + média por dia × dias.
-  Quadro no Início (compacto) e em Relatórios; editor em `features/relatorios/OrcamentoEditor.tsx`.
+- A antiga tela **Relatórios** saiu na 1.4.0 (ver abaixo): `/relatorios` agora é a prestação de contas. A cor das barras
+  (`components/chartTheme.ts`) foi validada para daltonismo — não trocar sem validar.
+- **Orçamento** (`domain/orcamento.ts`): limites em reais, total e por categoria. Atenção a partir de 80%, estourou
+  acima de 100%; projeção = antes + depois + média por dia × dias. Desde a 1.4.0, **um orçamento por conjunto de pessoas
+  do "Custo de"** (`Trip.budgets`, `budgetFor`/`withBudget`; o antigo `Trip.budget` vale como o primeiro). Editor em
+  `features/relatorios/OrcamentoEditor.tsx`, aberto pelo Início ("Por orçamento").
 
 ### Comprovantes e planilha (versão 0.7.0)
 
@@ -228,13 +228,28 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   gastos a pagar. Seção `meios` da prestação de contas (entra no Completo) e quadro em Relatórios. O filtro "Meios"
   da lista acha o meio de qualquer pagador.
 
+### Início concentra os relatórios (versão 1.4.0, decisões do dono)
+
+- **Sem a tela Relatórios**: o botão "Relatórios" (Início, menu e Mais) abre a prestação de contas (`/relatorios`;
+  `/relatorios/prestacao` redireciona). Recharts saiu do projeto (o gráfico por dia continua no PDF, seção "Por dia").
+- **Quadro de visões no Início** (`components/Breakdown.tsx`): Por categoria, Por pessoa (só com mais de uma pessoa
+  escolhida), Por orçamento (o das pessoas escolhidas; sem ele, convite para definir) e Por meio de pagamento
+  (`totalsByMethod`). Botões no computador, lista suspensa no celular.
+- **Últimos gastos**: só os que envolvem as pessoas escolhidas (`involves`); "Ver todos" abre a lista já filtrada.
+- **Em outras moedas**: valor na moeda e, discreto, quanto custou em reais (`summarize().byCurrency[].brl`).
+- **Câmbio, imposto e gorjeta** no fim do Início (sem as cargas): IOF e spread dos cartões e, por moeda, imposto local
+  e gorjetas também em reais pela cotação que cada gasto usou (`extras[].localTaxBRL`/`tipBRL`).
+- **Saldos em moeda**: cada pessoa numa linha com o total à direita (moeda e ≈ reais); as carteiras dela recuadas,
+  só com o saldo (médio e custo de cada carteira ficam na tela Carteiras); com mais de uma pessoa, o total somado.
+- Projeção ("no ritmo atual, deve fechar em…") no destaque do Início.
+
 ### Visões por viajante e auditoria (versão 1.3.0, decisões do dono)
 
 - **Início, "Saldos em moeda"**: só as carteiras das pessoas do "Custo de", agrupadas por pessoa, com o total dela
   por moeda em reais pelo médio das carteiras dela (`HolderTotals` em `CarteirasPage`, só saldos positivos).
 - **Carteiras**: filtro "Carteiras de" com o mesmo "Custo de" das outras abas (`useCostPeople`); carteiras de quem
   não está na viagem não aparecem (com aviso). Total por viajante também em reais.
-- **"Por categoria" / "Por pessoa"** (`components/Breakdown.tsx`, no Início e em Relatórios): dois botões; "Por pessoa"
+- **"Por categoria" / "Por pessoa"** (`components/Breakdown.tsx`; desde a 1.4.0, parte do quadro de visões do Início): "Por pessoa"
   só com mais de uma pessoa escolhida e só com as escolhidas.
 - **Auditoria** (seção opcional `divisao` da prestação de contas, "Divisão de cada gasto"): em cada gasto, quanto cada
   um pagou e a parte de cada um; terceiros seguem a regra de nomes ("outro viajante" / "outras pessoas").
