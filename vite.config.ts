@@ -17,6 +17,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
+        // Identidade do app instalado (igual à que o Chrome já calculava pelo endereço publicado): fixa, para nunca se
+        // confundir com o app de gastos, que mora no mesmo site (graraujo90.github.io).
+        id: '/controle-viagem/',
         name: 'Controle de Viagem',
         short_name: 'Viagem',
         description: 'Gastos de viagem, câmbio e divisão de despesas',

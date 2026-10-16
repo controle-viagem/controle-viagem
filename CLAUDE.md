@@ -243,7 +243,6 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 
 - **Consulta por viajante** (adiada pelo dono): link só leitura por pessoa/grupo com o extrato embutido (sem
   servidor, exige o app publicado); consulta ao vivo depois do sync.
-- Ícones PNG próprios do app (hoje são os do app de gastos).
 
 ## Aparência
 
@@ -253,7 +252,10 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   estimado âmbar (≈), saldo de carteira índigo. Selos de moeda e avatares de pessoa (`components/Badges.tsx`) usam
   cores de destaque com `color-mix`, como os ícones de categoria, e servem nos dois temas.
 - O total do Início fica num cartão invertido (`bg-slate-900 text-white`), que se inverte sozinho no escuro.
-- Ícones PNG em `public/` ainda são os do app de gastos; só o `favicon.svg` é próprio.
+- Ícones próprios (avião de papel do `favicon.svg`), gerados por script sem bibliotecas (1.0.1). Antes eram os do
+  app de gastos e o Chrome do Android parecia "confundir" os dois apps instalados. O manifesto tem `id` fixo
+  (`/controle-viagem/`): os dois apps moram no mesmo site e só o endereço os separa. Os dois compartilham o
+  armazenamento do site: bancos com nomes diferentes (`controle-viagem`/`controle-gastos`), tema e login Microsoft em comum.
 
 ## Armadilhas do ambiente
 
