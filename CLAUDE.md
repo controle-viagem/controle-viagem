@@ -5,6 +5,26 @@ moedas e divisão de despesas entre pessoas (PWA, pt-BR). Irmão do app de gasto
 O dono do projeto não é programador: explique decisões em linguagem simples e valide regras de negócio com ele
 antes de mudar.
 
+## Como trabalhamos (combinados com o dono)
+
+Valem em qualquer computador: este arquivo é a memória do projeto. Quando o dono disser "quero continuar o
+desenvolvimento do app de viagem", leia este arquivo, faça `git pull` e pergunte o que ele quer ajustar.
+
+- **Estado atual**: versão 1.4.0 publicada em https://controle-viagem.github.io/controle-viagem/ (o dono usa o app
+  publicado; os dados reais dele ficam no celular e no OneDrive, nunca no navegador local). Próximo item anotado:
+  **consulta por viajante** (ver "Decisões para as próximas fases"). Atualize esta linha a cada versão publicada.
+- **Commit e push só com o ok explícito do dono**, a cada vez (ou quando o próprio pedido já diz "pode commitar e
+  publicar"). Autor dos commits: `graraujo90 <graraujo90@users.noreply.github.com>`, mensagem em português, terminando
+  com a linha `Co-Authored-By` do Claude. Cada push na `main` publica o site sozinho (GitHub Actions).
+- **A cada entrega**: sobe a versão em `package.json` e `package-lock.json`, documenta neste arquivo a decisão do dono
+  (uma seção por versão), roda `npm test` e `npm run build`, e confere no navegador.
+- **Teste no navegador só com dados próprios de teste**: viagem, carteiras e meios com nome começando por "TESTE";
+  apague tudo no fim (viagem, cargas, carteiras e chaves da tabela `local` que você criou). Nunca altere dados do dono.
+- Antes de mudar uma regra de negócio, proponha e espere o ok; pergunte com opções claras e uma recomendada.
+- **Dois computadores**: o projeto fica no OneDrive e no GitHub. Não trabalhe nos dois ao mesmo tempo; espere o
+  OneDrive terminar de sincronizar antes de abrir no outro; comece com `git pull` e termine com commit e push (com ok).
+  Se faltar `node_modules`, rode `npm install`.
+
 ## Comandos
 
 - `npm run dev` — servidor local em http://localhost:5174 (o app de gastos usa a 5173)
