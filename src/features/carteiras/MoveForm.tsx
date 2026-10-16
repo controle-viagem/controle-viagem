@@ -59,8 +59,8 @@ export function MoveForm({ kind, move, wallets, walletId: initialWallet, data, o
   const [deleting, setDeleting] = useState(false)
 
   const rateN = parseDecimal(rate)
-  // Carga nova: spread e IOF vêm sugeridos do cadastro da carteira (o dono pode mudar).
-  const registry = !move ? wallets.find((w) => w.id === walletId) : undefined
+  // Carga nova num cartão multimoeda: spread e IOF vêm sugeridos do cadastro dele (o dono pode mudar). Espécie, não.
+  const registry = !move ? wallets.find((w) => w.id === walletId && w.walletType !== 'especie') : undefined
   const spreadText = spread || decimalText(registry?.spreadPct)
   const iofText = iof || decimalText(registry?.iofPct)
   const spreadN = parseDecimal(spreadText) ?? 0

@@ -80,8 +80,9 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   **já ficou** negativo (gasto lançado antes da carga), com a data.
 - **Nunca há médio juntando carteiras de titulares diferentes** (decisão do dono, 1.1.0): em Carteiras, cada grupo
   ("Minhas carteiras", "Carteiras de Ana") mostra o total por moeda e o médio só com saldos positivos
-  (`positiveByCurrency`); saldos negativos ficam de fora, com aviso. Spread e IOF opcionais no cadastro da carteira
-  (`spreadPct`/`iofPct`, mesmos campos do cartão): custo de uma carga nova, sugeridos ao lançar a carga.
+  (`positiveByCurrency`); saldos negativos ficam de fora, com aviso. Spread e IOF opcionais no cadastro do **cartão
+  multimoeda** (`spreadPct`/`iofPct`, mesmos campos do cartão): custo de uma carga nova, sugeridos ao lançar a carga.
+  **Espécie não tem** (decisão do dono, 1.2.2): o custo dele vem do saque/transferência ou da casa de câmbio.
 - Telas: Carteiras (`/carteiras`, no menu lateral e no Mais; no celular também pelo cartão do Início), formulário
   de movimento `features/carteiras/MoveForm.tsx`, prévia do custo no formulário de gasto.
 - As 6 regras das carteiras da fase 2 foram **aprovadas pelo dono** (15/10/2026): tarifa de saque embutida no custo
@@ -122,8 +123,8 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - **Calculadora** (`/calculadora`, `domain/calculadora.ts`): preço + imposto % + gorjeta % (sobre o preço sem imposto)
   para o viajante escolhido em "Quem paga" (`payerOptions`, decisão do dono na 1.2.1): **uma linha "Saldo das
   carteiras"** pelo médio de todas as carteiras dele com saldo positivo (avisa se não cobre); **uma "carga nova" por
-  carteira**, simulando carregar hoje: cotação do dia (digitada ou PTAX) × spread × IOF do cadastro da carteira
-  (avisa quando não estão cadastrados); cada cartão em reais dele e a simulação livre; destaca a mais barata.
+  cartão multimoeda com spread e IOF cadastrados** (1.2.2; pode ser 0), simulando carregar hoje: cotação do dia
+  (digitada ou PTAX) × spread × IOF do cadastro. Espécie só entra pelo saldo, quando tem; cada cartão em reais dele e a simulação livre; destaca a mais barata.
 - **Cotação de referência por viajante** (1.1.0, `referenceRates`, `RateLookup(moeda, { personId, methodId })`):
   médio das carteiras de quem pagou (membros, se for grupo), só saldos positivos; sem nenhuma, a última cotação da
   viagem. Cartão em reais dele: cotação do dia (última da viagem) × spread × IOF do cartão. Usada no custo do que

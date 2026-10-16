@@ -46,13 +46,14 @@ export interface PayerOption extends Option {
   warning?: string
 }
 
-type Method = Pick<PaymentMethod, 'id' | 'name' | 'kind' | 'spreadPct' | 'iofPct'>
+type Method = Pick<PaymentMethod, 'id' | 'name' | 'kind' | 'walletType' | 'spreadPct' | 'iofPct'>
 
 /**
- * Formas de pagar do viajante escolhido (decisão do dono, 1.2.1):
+ * Formas de pagar do viajante escolhido (decisões do dono, 1.2.1 e 1.2.2):
  * - **saldo das carteiras**: uma linha só, pelo médio de todas as carteiras dele com saldo positivo na moeda
  *   (avisa se o saldo não cobre o preço);
- * - **carga nova** em cada carteira: cotação do dia (digitada ou PTAX) × (1 + spread) × (1 + IOF) do cadastro dela;
+ * - **carga nova** em cada cartão multimoeda com spread e IOF cadastrados: cotação do dia (digitada ou PTAX) ×
+ *   (1 + spread) × (1 + IOF) do cadastro dele (espécie e carteira sem as taxas cadastradas não aparecem);
  * - cada **cartão em reais** dele: cotação do dia × (1 + spread) × (1 + IOF) do cartão.
  * Os meios já vêm filtrados para o viajante (`methodsFor`): nunca entram carteiras de outra pessoa.
  */
@@ -79,15 +80,14 @@ export function payerOptions(
       warning: total > saldo.units ? 'O saldo não cobre o preço.' : undefined,
     })
   }
-  for (const w of wallets) {
-    // Sem spread e IOF no cadastro, a conta sai sem eles: avisa, para a carga não parecer mais barata do que é.
-    const unregistered = w.spreadPct === undefined && w.iofPct === undefined
+  // Carga nova só nos cartões multimoeda com spread e IOF cadastrados (decisão do dono, 1.2.2). Espécie não tem carga
+  // simulável: o custo dele vem do saque/transferência ou da casa de câmbio; entra só pelo saldo, na linha acima.
+  for (const w of wallets.filter((x) => x.walletType !== 'especie' && x.spreadPct !== undefined && x.iofPct !== undefined)) {
     options.push({
       key: `l:${w.id}`,
       label: `${w.name} · carga nova`,
       detail: daily(w.spreadPct, w.iofPct),
       brl: viaCard(total, rate, w.spreadPct ?? 0, w.iofPct ?? 0),
-      warning: unregistered ? 'Sem spread e IOF no cadastro da carteira (Mais → Meios de pagamento).' : undefined,
     })
   }
   for (const c of methods.filter((m) => m.kind === 'cartao_brl')) {

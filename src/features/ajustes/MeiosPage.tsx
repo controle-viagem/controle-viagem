@@ -46,6 +46,7 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
   const [loadIof, setLoadIof] = useState(method?.kind === 'carteira' ? decimalText(method.iofPct) : '')
   const [error, setError] = useState('')
   const card = kind === 'cartao_brl'
+  const multicurrency = kind === 'carteira' && walletType === 'multimoeda'
   // Carteira não vira outro tipo nem o contrário: o custo em reais dos gastos já lançados mudaria de regra.
   const kinds = !method ? KINDS : method.kind === 'carteira' ? (['carteira'] as const) : KINDS.filter((k) => k !== 'carteira')
 
@@ -61,8 +62,9 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
       name: name.trim(),
       kind,
       archived: false,
-      iofPct: card ? (iofPct ?? 0) : kind === 'carteira' ? (parseDecimal(loadIof) ?? undefined) : undefined,
-      spreadPct: card ? (spreadPct ?? 0) : kind === 'carteira' ? (parseDecimal(loadSpread) ?? undefined) : undefined,
+      // Espécie não tem spread e IOF de carga (o custo vem do saque, da transferência ou da casa de câmbio).
+      iofPct: card ? (iofPct ?? 0) : multicurrency ? (parseDecimal(loadIof) ?? undefined) : undefined,
+      spreadPct: card ? (spreadPct ?? 0) : multicurrency ? (parseDecimal(loadSpread) ?? undefined) : undefined,
       walletType: kind === 'carteira' ? walletType : undefined,
       holderName: othersWallet && holder.trim() ? holder.trim() : undefined,
     })
@@ -152,7 +154,7 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
           </p>
         </div>
 
-        {kind === 'carteira' && (
+        {multicurrency && (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label" htmlFor="mp-carga-spread">Spread da carga (%)</label>
@@ -163,8 +165,9 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
               <input id="mp-carga-iof" className="field" inputMode="decimal" placeholder="opcional" value={loadIof} onChange={(e) => setLoadIof(e.target.value)} />
             </div>
             <p className="col-span-2 text-xs text-slate-500">
-              Quanto custa colocar dinheiro nesta carteira, além da cotação do dia. Usados na calculadora para simular uma
-              carga nova e sugeridos ao lançar uma carga. O custo médio das cargas já feitas não muda.
+              Quanto custa colocar dinheiro neste cartão, além da cotação do dia. Com os dois preenchidos (pode ser 0), a
+              calculadora simula uma carga nova nele; também são sugeridos ao lançar uma carga. O custo médio das cargas já
+              feitas não muda.
             </p>
           </div>
         )}
