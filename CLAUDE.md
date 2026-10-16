@@ -10,7 +10,8 @@ antes de mudar.
 - `npm run dev` — servidor local em http://localhost:5174 (o app de gastos usa a 5173)
 - `npm test` — testes das regras de negócio (Vitest)
 - `npm run build` — checagem de tipos + build de produção em `dist/`
-- Publicação: GitHub Actions (`.github/workflows/deploy.yml`) a cada push na `main`, quando o repositório existir.
+- Publicação: GitHub Actions (`.github/workflows/deploy.yml`) a cada push na `main`. Repositório na organização
+  `controle-viagem` (https://github.com/controle-viagem/controle-viagem), site https://controle-viagem.github.io/controle-viagem/.
 
 ## Arquitetura
 
@@ -263,8 +264,10 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - Ícones próprios: aviãozinho visto de cima, inclinado (decisão do dono; o de papel lembrava o Telegram). Gerados
   por `node scripts/icones.cjs` (sem bibliotecas), que grava os PNGs e o `favicon.svg` em `public/`. Antes eram os
   do app de gastos. O manifesto tem `id` fixo
-  (`/controle-viagem/`): os dois apps moram no mesmo site e só o endereço os separa. Os dois compartilham o
-  armazenamento do site: bancos com nomes diferentes (`controle-viagem`/`controle-gastos`), tema e login Microsoft em comum.
+  (`/controle-viagem/`).
+- **Site próprio** (16/10/2026): no mesmo site do app de gastos (graraujo90.github.io), o Chrome do Android dizia
+  "já instalado" sem estar (chrome://webapks só tinha o Gastos). Por isso o repositório foi para a organização
+  `controle-viagem`: endereço novo, armazenamento e login próprios. O endereço novo precisa estar no portal Microsoft.
 
 ## Armadilhas do ambiente
 
