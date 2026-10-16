@@ -1,25 +1,28 @@
 import { ME, type Expense, type PaymentMethod, type Payer } from '../db/types'
-import type { Position } from './custoMedio'
+import { positiveByCurrency, type Position } from './custoMedio'
 import { brlValue, isEstimate, isForeign, spendId, type WalletCosts } from './despesa'
 import { partOf, payersOf } from './rateio'
+import { walletsOf } from './titular'
 
 /**
- * Cotação de referência de uma moeda (reais por unidade), ou null quando não há nenhuma. Com o meio de pagamento de
- * outra pessoa: se for um cartão em reais dela, já com o spread e o IOF do cadastro do cartão.
+ * Cotação de referência de uma moeda (reais por unidade), ou null quando não há nenhuma. `personId` = quem pagou
+ * (pessoa ou grupo; ausente = "Eu"); `methodId` = o meio que ela usou (cartão em reais leva spread e IOF).
  */
-export type RateLookup = (currency: string, methodId?: string) => number | null
-
-type CardInfo = Pick<PaymentMethod, 'id' | 'kind' | 'spreadPct' | 'iofPct'>
+export type RateLookup = (currency: string, opts?: { personId?: string; methodId?: string }) => number | null
 
 /**
- * Cotação para pôr em reais o que outra pessoa pagou em moeda estrangeira (e sugerir no acerto e na calculadora):
- * o custo médio das minhas carteiras naquela moeda; sem carteira com saldo, a última cotação usada na viagem.
- * Pago com o cartão em reais da pessoa: essa cotação × (1 + spread) × (1 + IOF), como no meu cartão.
+ * Cotação para pôr em reais o que um viajante pagou em moeda estrangeira (e sugerir no acerto), decisão do dono:
+ * - o **médio das carteiras daquele viajante** (do grupo, se for um grupo) com saldo positivo naquela moeda;
+ *   sem nenhuma, a última cotação usada na viagem;
+ * - pago com o **cartão em reais** dele: a cotação do dia (a última da viagem; sem ela, o médio dele) × (1 + spread)
+ *   × (1 + IOF) do cartão, porque o cartão cobra pela cotação do dia, não pelo dinheiro já carregado.
  */
 export function referenceRates(
-  walletByCurrency: Pick<Position, 'currency' | 'avg'>[],
+  positions: Position[],
   tripExpenses: Pick<Expense, 'currency' | 'rate' | 'date'>[],
-  methods: CardInfo[] = [],
+  methods: Pick<PaymentMethod, 'id' | 'kind' | 'holderName' | 'spreadPct' | 'iofPct'>[] = [],
+  people: { id: string; name: string }[] = [],
+  groups: { id: string; memberIds: string[] }[] = [],
 ): RateLookup {
   const lastRate = new Map<string, { date: string; rate: number }>()
   for (const e of tripExpenses) {
@@ -28,11 +31,25 @@ export function referenceRates(
     if (!current || e.date >= current.date) lastRate.set(e.currency, { date: e.date, rate: e.rate })
   }
   const cards = new Map(methods.filter((m) => m.kind === 'cartao_brl').map((m) => [m.id, m]))
-  return (currency, methodId) => {
+  const wallets = methods.filter((m) => m.kind === 'carteira')
+  /** Médio, só com saldos positivos, das carteiras das pessoas (os membros, se for um grupo). */
+  function averageOf(personId: string, currency: string): number | null {
+    const memberIds = groups.find((g) => g.id === personId)?.memberIds ?? [personId]
+    const ids = new Set(
+      memberIds.flatMap((id) => {
+        const person = people.find((p) => p.id === id) ?? (id === ME ? { id: ME, name: '' } : undefined)
+        return person ? walletsOf(person, wallets).map((w) => w.id) : []
+      }),
+    )
+    return positiveByCurrency(positions.filter((p) => ids.has(p.walletId) && p.currency === currency))[0]?.avg ?? null
+  }
+  return (currency, { personId = ME, methodId } = {}) => {
     if (currency === 'BRL') return 1
-    const rate = walletByCurrency.find((p) => p.currency === currency)?.avg ?? lastRate.get(currency)?.rate ?? null
+    const last = lastRate.get(currency)?.rate ?? null
     const card = methodId ? cards.get(methodId) : undefined
-    return rate !== null && card ? rate * (1 + (card.spreadPct ?? 0) / 100) * (1 + (card.iofPct ?? 0) / 100) : rate
+    if (!card) return averageOf(personId, currency) ?? last
+    const base = last ?? averageOf(personId, currency)
+    return base === null ? null : base * (1 + (card.spreadPct ?? 0) / 100) * (1 + (card.iofPct ?? 0) / 100)
   }
 }
 
@@ -47,7 +64,7 @@ export function payerBRL(e: Expense, p: Payer, wallet: WalletCosts, rateFor: Rat
   const fromWallet = wallet.get(spendId(e.id, p.personId))
   if (fromWallet !== undefined) return { brl: fromWallet, estimated: false }
   if (!isForeign(e)) return { brl: p.amount, estimated: false }
-  const rate = rateFor(e.currency, p.methodId)
+  const rate = rateFor(e.currency, { personId: p.personId, methodId: p.methodId })
   return { brl: rate ? Math.round(p.amount * rate) : 0, estimated: true }
 }
 

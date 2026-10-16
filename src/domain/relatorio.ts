@@ -278,7 +278,7 @@ export function buildReport(input: ReportInput, config: ReportConfig): ReportMod
     model.transfers = suggest(partyBalances(b, list))
       .filter((t) => touches(t.fromId) || touches(t.toId))
       .map((t) => {
-        const rate = t.currency === 'BRL' ? null : rateFor(t.currency)
+        const rate = t.currency === 'BRL' ? null : rateFor(t.currency, { personId: t.fromId })
         return { from: byId.get(t.fromId)?.name ?? '—', to: byId.get(t.toId)?.name ?? '—', currency: t.currency, amount: t.amount, brl: rate ? Math.round(t.amount * rate) : null }
       })
   }

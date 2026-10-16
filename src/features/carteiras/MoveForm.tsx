@@ -57,8 +57,12 @@ export function MoveForm({ kind, move, wallets, data, onClose }: Props) {
   const [deleting, setDeleting] = useState(false)
 
   const rateN = parseDecimal(rate)
-  const spreadN = parseDecimal(spread) ?? 0
-  const iofN = parseDecimal(iof) ?? 0
+  // Carga nova: spread e IOF vêm sugeridos do cadastro da carteira (o dono pode mudar).
+  const registry = !move ? wallets.find((w) => w.id === walletId) : undefined
+  const spreadText = spread || decimalText(registry?.spreadPct)
+  const iofText = iof || decimalText(registry?.iofPct)
+  const spreadN = parseDecimal(spreadText) ?? 0
+  const iofN = parseDecimal(iofText) ?? 0
   const fromDetails = kind === 'carga' && rateN && amount > 0 ? cardCharge(amount, rateN, spreadN, iofN).total + brlFee : null
 
   const fields: Omit<WalletMove, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -206,11 +210,11 @@ export function MoveForm({ kind, move, wallets, data, onClose }: Props) {
                 </div>
                 <div>
                   <label className="label !text-xs" htmlFor="mv-spread">Spread (%)</label>
-                  <input id="mv-spread" className="field" inputMode="decimal" placeholder="0" value={spread} onChange={(e) => setSpread(e.target.value)} />
+                  <input id="mv-spread" className="field" inputMode="decimal" placeholder="0" value={spreadText} onChange={(e) => setSpread(e.target.value)} />
                 </div>
                 <div>
                   <label className="label !text-xs" htmlFor="mv-iof">IOF (%)</label>
-                  <input id="mv-iof" className="field" inputMode="decimal" placeholder="0" value={iof} onChange={(e) => setIof(e.target.value)} />
+                  <input id="mv-iof" className="field" inputMode="decimal" placeholder="0" value={iofText} onChange={(e) => setIof(e.target.value)} />
                 </div>
               </div>
               <PtaxButton currency={currency} onRate={(r) => setRate(decimalText(r))} />

@@ -2,7 +2,6 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo } from 'react'
 import { db } from '../../db/db'
 import { ME, type Category, type Expense, type PaymentMethod, type Person, type Settlement } from '../../db/types'
-import { byCurrency } from '../../domain/custoMedio'
 import { referenceRates, type RateLookup } from '../../domain/custoViagem'
 import type { WalletCosts } from '../../domain/despesa'
 import { useWalletData } from '../carteiras/useWalletData'
@@ -20,7 +19,7 @@ export interface TripData {
   receiptCounts: Map<string, number>
   /** Custo em reais dos gastos pagos por carteira (custo médio). */
   walletCosts: WalletCosts
-  /** Cotação de referência por moeda: médio das carteiras, senão a última usada na viagem. */
+  /** Cotação de referência por moeda e por quem paga: médio das carteiras dele, senão a última usada na viagem. */
   rateFor: RateLookup
   loaded: boolean
 }
@@ -37,6 +36,8 @@ export function useTripData(tripId: string | undefined): TripData {
       tripId ? db.people.where('tripId').equals(tripId).toArray() : [],
     ])
     const me = await db.people.get(ME)
+    // Grupos da viagem: a cotação de referência de um grupo usa as carteiras dos membros.
+    const groups = tripId ? ((await db.trips.get(tripId))?.groups ?? []) : []
     // Só as chaves do índice (o id do gasto de cada foto), sem carregar as imagens.
     const receiptKeys = tripId ? ((await db.receipts.where('tripId').equals(tripId).keys()) as string[]) : []
     const receiptCounts = new Map<string, number>()
@@ -57,13 +58,14 @@ export function useTripData(tripId: string | undefined): TripData {
       methods: new Map(methods.map((m) => [m.id, m])),
       people: new Map(travelers.map((p) => [p.id, p])),
       travelers,
+      groups,
       receiptCounts,
     }
   }, [tripId])
   const walletCosts = wallet.ledger.expenseCosts
   const rateFor = useMemo(
-    () => referenceRates(byCurrency(wallet.ledger.positions), data?.expenses ?? [], [...(data?.methods.values() ?? [])]),
-    [wallet.ledger, data?.expenses, data?.methods],
+    () => referenceRates(wallet.ledger.positions, data?.expenses ?? [], [...(data?.methods.values() ?? [])], data?.travelers ?? [], data?.groups ?? []),
+    [wallet.ledger, data],
   )
   return data && wallet.loaded
     ? { ...data, walletCosts, rateFor, loaded: true }

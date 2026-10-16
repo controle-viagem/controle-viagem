@@ -77,8 +77,10 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - Saldo sem cobertura (`domain/saldoCarteira.ts`): é permitido salvar, com aviso. Enquanto o saldo está negativo,
   as saídas usam o último médio conhecido (ou zero, se nunca houve carga). O aviso aparece quando o saldo está ou
   **já ficou** negativo (gasto lançado antes da carga), com a data.
-- Médio consolidado por moeda (`byCurrency`) soma todas as carteiras; aparece em Carteiras quando a moeda está em
-  mais de uma.
+- **Nunca há médio juntando carteiras de titulares diferentes** (decisão do dono, 1.1.0): em Carteiras, cada grupo
+  ("Minhas carteiras", "Carteiras de Ana") mostra o total por moeda e o médio só com saldos positivos
+  (`positiveByCurrency`); saldos negativos ficam de fora, com aviso. Spread e IOF opcionais no cadastro da carteira
+  (`spreadPct`/`iofPct`, mesmos campos do cartão): custo de uma carga nova, sugeridos ao lançar a carga.
 - Telas: Carteiras (`/carteiras`, no menu lateral e no Mais; no celular também pelo cartão do Início), formulário
   de movimento `features/carteiras/MoveForm.tsx`, prévia do custo no formulário de gasto.
 - As 6 regras das carteiras da fase 2 foram **aprovadas pelo dono** (15/10/2026): tarifa de saque embutida no custo
@@ -116,8 +118,14 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   Início) de cada gasto, em reais pelo custo real. O que outra pessoa pagou em moeda estrangeira vai pela cotação de
   referência (`referenceRates`) e conta como estimado. Lista de gastos e Viagens mostram o meu custo.
 - Texto para WhatsApp: `domain/textoAcertos.ts`, com o equivalente em reais pela cotação de referência.
-- **Calculadora** (`/calculadora`, `domain/calculadora.ts`): preço + imposto % + gorjeta % (sobre o preço sem imposto),
-  comparando custo médio das carteiras, cada cartão em reais (cotação do dia) e simulação livre; destaca a mais barata.
+- **Calculadora** (`/calculadora`, `domain/calculadora.ts`): preço + imposto % + gorjeta % (sobre o preço sem imposto)
+  para o viajante escolhido em "Quem paga" (`payerOptions`): cada carteira dele em "saldo atual" (médio, avisa se não
+  cobre) e "carregar hoje" (cotação × spread × IOF do cadastro), cada cartão em reais dele e a simulação livre;
+  destaca a mais barata.
+- **Cotação de referência por viajante** (1.1.0, `referenceRates`, `RateLookup(moeda, { personId, methodId })`):
+  médio das carteiras de quem pagou (membros, se for grupo), só saldos positivos; sem nenhuma, a última cotação da
+  viagem. Cartão em reais dele: cotação do dia (última da viagem) × spread × IOF do cartão. Usada no custo do que
+  outro pagou, na sugestão do acerto (pelo pagador) e no texto do WhatsApp.
 - O quadro "Câmbio (IOF + spread)" saiu do Início a pedido do dono (volta nos relatórios). `fx` segue em `summarize`.
 - Navegação no celular: Início, Gastos, +, Acertos, Mais. Carteiras, Calculadora e Viagens no Mais e no menu
   lateral; Calculadora também no topo do Início.
@@ -252,8 +260,9 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   estimado âmbar (≈), saldo de carteira índigo. Selos de moeda e avatares de pessoa (`components/Badges.tsx`) usam
   cores de destaque com `color-mix`, como os ícones de categoria, e servem nos dois temas.
 - O total do Início fica num cartão invertido (`bg-slate-900 text-white`), que se inverte sozinho no escuro.
-- Ícones próprios (avião de papel do `favicon.svg`), gerados por script sem bibliotecas (1.0.1). Antes eram os do
-  app de gastos e o Chrome do Android parecia "confundir" os dois apps instalados. O manifesto tem `id` fixo
+- Ícones próprios: aviãozinho visto de cima, inclinado (decisão do dono; o de papel lembrava o Telegram). Gerados
+  por `node scripts/icones.cjs` (sem bibliotecas), que grava os PNGs e o `favicon.svg` em `public/`. Antes eram os
+  do app de gastos. O manifesto tem `id` fixo
   (`/controle-viagem/`): os dois apps moram no mesmo site e só o endereço os separa. Os dois compartilham o
   armazenamento do site: bancos com nomes diferentes (`controle-viagem`/`controle-gastos`), tema e login Microsoft em comum.
 

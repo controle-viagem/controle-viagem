@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WalletMove } from '../db/types'
-import { byCurrency, ledger, saleResult } from './custoMedio'
+import { ledger, positiveByCurrency, saleResult } from './custoMedio'
 import { balances, type WalletExpense } from './saldoCarteira'
 
 let n = 0
@@ -110,10 +110,12 @@ describe('custo médio móvel', () => {
     expect(ledger([], [vazio]).expenseCosts.get(vazio.id)).toBe(0)
   })
 
-  it('médio consolidado por moeda soma todas as carteiras', () => {
+  it('total por moeda soma só as carteiras com saldo positivo', () => {
     const casaDeCambio = move({ walletId: 'especie', amount: 50000, brlAmount: 300000 })
-    const l = ledger([...loads, casaDeCambio], [])
-    expect(byCurrency(l.positions)).toEqual([{ currency: 'USD', units: 200000, cost: 1162500, avg: 5.8125 }])
+    // Carteira sem carga, com um gasto: saldo negativo, fica de fora do total e do médio.
+    const semCarga = spend({ id: 'sem-carga', methodId: 'revolut', amount: 30000 })
+    const l = ledger([...loads, casaDeCambio], [semCarga])
+    expect(positiveByCurrency(l.positions)).toEqual([{ currency: 'USD', units: 200000, cost: 1162500, avg: 5.8125 }])
   })
 })
 

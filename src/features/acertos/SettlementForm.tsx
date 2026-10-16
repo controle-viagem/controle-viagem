@@ -51,7 +51,7 @@ export function SettlementForm({ trip, parties, balances, rateFor, currencies, d
   const [amount, setAmount] = useState(draft.amount)
   const [date, setDate] = useState(first?.date ?? todayISO())
   const [inBRL, setInBRL] = useState(!!first?.paidCurrency)
-  const [rate, setRate] = useState(decimalText(first?.rate ?? rateFor(draft.currency) ?? undefined, 4))
+  const [rate, setRate] = useState(decimalText(first?.rate ?? rateFor(draft.currency, { personId: draft.fromId }) ?? undefined, 4))
   const [spread, setSpread] = useState(decimalText(first?.spreadPct ?? 0))
   const [iof, setIof] = useState(decimalText(first?.iofPct ?? 0))
   // Valor em reais digitado; sem ele, vale o calculado pela cotação, spread e IOF.
@@ -165,7 +165,7 @@ export function SettlementForm({ trip, parties, balances, rateFor, currencies, d
                 value={currency}
                 onChange={(e) => {
                   setCurrency(e.target.value)
-                  setRate(decimalText(rateFor(e.target.value) ?? undefined, 4))
+                  setRate(decimalText(rateFor(e.target.value, { personId: fromId }) ?? undefined, 4))
                   setBrlTyped(null)
                   if (e.target.value === 'BRL') setInBRL(false)
                 }}

@@ -41,6 +41,9 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
   const [othersWallet, setOthersWallet] = useState(!!method?.holderName)
   const [iof, setIof] = useState(decimalText(method?.iofPct ?? 3.5))
   const [spread, setSpread] = useState(decimalText(method?.spreadPct ?? 4))
+  // Carteira: spread e IOF de uma carga nova (opcionais), para a calculadora simular e para sugerir na carga.
+  const [loadSpread, setLoadSpread] = useState(method?.kind === 'carteira' ? decimalText(method.spreadPct) : '')
+  const [loadIof, setLoadIof] = useState(method?.kind === 'carteira' ? decimalText(method.iofPct) : '')
   const [error, setError] = useState('')
   const card = kind === 'cartao_brl'
   // Carteira não vira outro tipo nem o contrário: o custo em reais dos gastos já lançados mudaria de regra.
@@ -58,8 +61,8 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
       name: name.trim(),
       kind,
       archived: false,
-      iofPct: card ? (iofPct ?? 0) : undefined,
-      spreadPct: card ? (spreadPct ?? 0) : undefined,
+      iofPct: card ? (iofPct ?? 0) : kind === 'carteira' ? (parseDecimal(loadIof) ?? undefined) : undefined,
+      spreadPct: card ? (spreadPct ?? 0) : kind === 'carteira' ? (parseDecimal(loadSpread) ?? undefined) : undefined,
       walletType: kind === 'carteira' ? walletType : undefined,
       holderName: othersWallet && holder.trim() ? holder.trim() : undefined,
     })
@@ -148,6 +151,23 @@ export function MethodForm({ method, initialKind = 'cartao_brl', onClose }: Form
               : 'Meio seu: aparece quando você paga.'}
           </p>
         </div>
+
+        {kind === 'carteira' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label" htmlFor="mp-carga-spread">Spread da carga (%)</label>
+              <input id="mp-carga-spread" className="field" inputMode="decimal" placeholder="opcional" value={loadSpread} onChange={(e) => setLoadSpread(e.target.value)} />
+            </div>
+            <div>
+              <label className="label" htmlFor="mp-carga-iof">IOF da carga (%)</label>
+              <input id="mp-carga-iof" className="field" inputMode="decimal" placeholder="opcional" value={loadIof} onChange={(e) => setLoadIof(e.target.value)} />
+            </div>
+            <p className="col-span-2 text-xs text-slate-500">
+              Quanto custa colocar dinheiro nesta carteira, além da cotação do dia. Usados na calculadora para simular uma
+              carga nova e sugeridos ao lançar uma carga. O custo médio das cargas já feitas não muda.
+            </p>
+          </div>
+        )}
 
         {card && (
           <div className="grid grid-cols-2 gap-3">

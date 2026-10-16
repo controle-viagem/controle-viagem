@@ -2,14 +2,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { BadgeCheck, Calculator } from 'lucide-react'
 import { useState } from 'react'
 import { useApp } from '../../app/AppContext'
-import { CurrencyBadge } from '../../components/Badges'
+import { Avatar, CurrencyBadge } from '../../components/Badges'
 import { MoneyInput } from '../../components/MoneyInput'
 import { PtaxButton } from '../../components/PtaxButton'
 import { db } from '../../db/db'
-import { byCurrency } from '../../domain/custoMedio'
-import { cheapest, priceWithExtras, viaCard, viaWallet, type Option } from '../../domain/calculadora'
+import { ME } from '../../db/types'
+import { cheapest, payerOptions, priceWithExtras, viaCard, type PayerOption } from '../../domain/calculadora'
 import { CURRENCIES, currencyName, decimalText, parseDecimal } from '../../domain/moeda'
-import { isMine } from '../../domain/titular'
+import { methodsFor } from '../../domain/titular'
 import { formatBRL, formatMoney, formatRate } from '../../lib/format'
 import { useWalletData } from '../carteiras/useWalletData'
 
@@ -31,7 +31,14 @@ function PercentField({ id, label, value, onChange }: { id: string; label: strin
 export function CalculadoraPage() {
   const { trip } = useApp()
   const wallet = useWalletData()
-  const cards = (useLiveQuery(() => db.paymentMethods.where('kind').equals('cartao_brl').toArray(), []) ?? []).filter((m) => !m.archived && isMine(m))
+  const methods = (useLiveQuery(() => db.paymentMethods.toArray(), []) ?? []).filter((m) => !m.archived)
+  // Quem paga: eu e os viajantes da viagem (só aparecem os que têm algum meio cadastrado).
+  const travelers = useLiveQuery(async () => {
+    const me = await db.people.get(ME)
+    const others = trip ? await db.people.where('tripId').equals(trip.id).sortBy('name') : []
+    return [...(me ? [me] : []), ...others]
+  }, [trip?.id]) ?? []
+  const [payerId, setPayerId] = useState(ME)
   const tripCurrencies = trip?.currencies ?? []
   const [currency, setCurrency] = useState(tripCurrencies[0] ?? 'USD')
   const [price, setPrice] = useState(0)
@@ -53,29 +60,10 @@ export function CalculadoraPage() {
   const p = priceWithExtras(price, parseDecimal(tax) ?? 0, parseDecimal(tip) ?? 0)
   const rateText = rate || (lastRate ? decimalText(lastRate) : '')
   const rateN = parseDecimal(rateText)
-  const options: Option[] = []
-
-  const consolidated = byCurrency(wallet.ledger.positions).find((c) => c.currency === currency)
-  if (consolidated?.avg) {
-    options.push({ key: 'carteiras', label: 'Carteiras (custo médio)', detail: `médio ${formatRate(consolidated.avg)} · saldo ${formatMoney(consolidated.units, currency)}`, brl: viaWallet(p.total, consolidated.avg) })
-  }
-  const walletsWith = wallet.ledger.positions.filter((x) => x.currency === currency && x.avg && x.units > 0)
-  if (walletsWith.length > 1) {
-    for (const w of walletsWith) {
-      const name = wallet.wallets.find((x) => x.id === w.walletId)?.name ?? '—'
-      options.push({ key: `w:${w.walletId}`, label: name, detail: `médio ${formatRate(w.avg!)}`, brl: viaWallet(p.total, w.avg) })
-    }
-  }
-  for (const card of cards) {
-    const spread = card.spreadPct ?? 0
-    const iof = card.iofPct ?? 0
-    options.push({
-      key: `c:${card.id}`,
-      label: card.name,
-      detail: rateN ? `${formatRate(rateN)} + spread ${decimalText(spread)}% + IOF ${decimalText(iof)}%` : 'informe a cotação do dia',
-      brl: viaCard(p.total, rateN, spread, iof),
-    })
-  }
+  const payers = travelers.filter((t) => t.id === ME || methodsFor(t, methods, currency).length > 0)
+  const payer = payers.find((t) => t.id === payerId) ?? payers[0]
+  const payerMethods = payer ? methodsFor(payer, methods, currency) : []
+  const options: PayerOption[] = payerOptions(p.total, currency, rateN, payerMethods, wallet.ledger.positions)
   const simRateN = parseDecimal(simRate)
   options.push({
     key: 'sim',
@@ -152,6 +140,24 @@ export function CalculadoraPage() {
           <input id="calc-cot" className="field" inputMode="decimal" placeholder="5,50" value={rateText} onChange={(e) => setRate(e.target.value)} />
         </div>
         <PtaxButton currency={currency} onRate={(r) => setRate(decimalText(r))} />
+        {payers.length > 1 && (
+          <div>
+            <span className="label !text-xs">Quem paga</span>
+            <div className="flex flex-wrap gap-1.5">
+              {payers.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={t.id === payer?.id}
+                  onClick={() => setPayerId(t.id)}
+                  className={`flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-sm font-medium ring-1 ${t.id === payer?.id ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white text-slate-600 ring-slate-200'}`}
+                >
+                  <Avatar id={t.id} name={t.name} size="sm" /> {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <ul className="space-y-2">
           {options.map((o) => {
             const isBest = o.key === best
@@ -167,6 +173,7 @@ export function CalculadoraPage() {
                     )}
                   </span>
                   <span className="block truncate text-xs text-slate-500">{o.detail}</span>
+                  {o.warning && <span className="block text-xs text-amber-600">{o.warning}</span>}
                 </span>
                 <span className={`shrink-0 text-lg font-bold tabular-nums ${isBest ? 'text-emerald-700' : ''}`}>
                   {o.brl === null || price === 0 ? '—' : formatBRL(o.brl)}
@@ -181,8 +188,8 @@ export function CalculadoraPage() {
           <PercentField id="calc-sim-spread" label="Spread (%)" value={simSpread} onChange={setSimSpread} />
           <PercentField id="calc-sim-iof" label="IOF (%)" value={simIof} onChange={setSimIof} />
         </div>
-        {!consolidated?.avg && (
-          <p className="text-xs text-slate-500">Sem carga em {currency} nas carteiras: lance as cargas em Carteiras para comparar pelo custo médio.</p>
+        {payerMethods.length === 0 && (
+          <p className="text-xs text-slate-500">Nenhuma carteira ou cartão em reais cadastrado para {payer?.id === ME ? 'você' : payer?.name}: só a simulação livre.</p>
         )}
       </section>
     </div>

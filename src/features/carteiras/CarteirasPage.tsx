@@ -2,7 +2,7 @@ import { ArrowDownToLine, ArrowLeftRight, CircleAlert, HandCoins, Plus, Repeat, 
 import { useState } from 'react'
 import { useApp } from '../../app/AppContext'
 import { WALLET_MOVE_LABEL, WALLET_TYPE_LABEL, type PaymentMethod, type Settlement, type WalletMove, type WalletMoveKind } from '../../db/types'
-import { byCurrency, saleResult, type Position } from '../../domain/custoMedio'
+import { positiveByCurrency, saleResult, type Position } from '../../domain/custoMedio'
 import { currencyName } from '../../domain/moeda'
 import { formatBRL, formatMoney, formatRate, shortDate } from '../../lib/format'
 import { MethodForm, MethodIcon } from '../ajustes/MeiosPage'
@@ -149,8 +149,12 @@ export function CarteirasPage() {
   const shownWallets = data.wallets
     .filter((w) => !w.archived || walletPositions(data, w.id).length > 0)
     .sort((a, b) => Number(!isMine(a)) - Number(!isMine(b)) || holderLabel(a).localeCompare(holderLabel(b), 'pt-BR'))
-  const consolidated = byCurrency(data.ledger.positions).filter((c) => c.units !== 0)
-  const multiWallet = consolidated.some((c) => data.ledger.positions.filter((p) => p.currency === c.currency && p.units !== 0).length > 1)
+  // Total de cada viajante (titular), só com saldos positivos: carteira sem carga ou negativa distorceria o médio.
+  function holderTotal(holder: string) {
+    const ids = new Set(shownWallets.filter((w) => holderLabel(w) === holder).map((w) => w.id))
+    const positions = data.ledger.positions.filter((p) => ids.has(p.walletId))
+    return { ids, totals: positiveByCurrency(positions), negatives: positions.filter((p) => p.units < 0).length }
+  }
 
   const rows: Row[] = [
     ...data.moves
@@ -199,27 +203,27 @@ export function CarteirasPage() {
         </div>
       )}
 
-      {multiWallet && (
-        <section className="card p-4">
-          <h2 className="font-semibold">Por moeda, todas as carteiras</h2>
-          <ul className="divide-y divide-slate-100">
-            {consolidated.map((c) => (
-              <PositionLine key={c.currency} position={c} />
-            ))}
-          </ul>
-        </section>
-      )}
-
       {shownWallets.map((w, i) => {
         const positions = walletPositions(data, w.id)
         const newHolder = i === 0 || holderLabel(shownWallets[i - 1]) !== holderLabel(w)
         return (
           <div key={w.id} className="space-y-1">
-          {newHolder && (
-            <h2 className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {isMine(w) ? 'Minhas carteiras' : `Carteiras de ${holderLabel(w)}`}
-            </h2>
-          )}
+          {newHolder && (() => {
+            const { ids, totals, negatives } = holderTotal(holderLabel(w))
+            return (
+              <div className="px-1 pt-1">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {isMine(w) ? 'Minhas carteiras' : `Carteiras de ${holderLabel(w)}`}
+                </h2>
+                {ids.size > 1 && totals.length > 0 && (
+                  <p className="text-xs text-slate-500">
+                    Total: {totals.map((t) => `${formatMoney(t.units, t.currency)} (médio ${formatRate(t.avg!)})`).join(' · ')}
+                    {negatives > 0 && <span className="text-amber-600"> · {negatives} saldo{negatives > 1 ? 's' : ''} negativo{negatives > 1 ? 's' : ''} fora do total</span>}
+                  </p>
+                )}
+              </div>
+            )
+          })()}
           <section className="card p-4">
             <button className="flex w-full items-center gap-2 text-left" onClick={() => setWalletForm({ wallet: w })}>
               <MethodIcon method={w} />

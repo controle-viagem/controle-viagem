@@ -9,7 +9,7 @@ import type { Transfer } from './saldos'
 export function settlementText(tripName: string, transfers: Transfer[], names: Map<string, string>, rateFor: RateLookup): string {
   if (transfers.length === 0) return `Acertos da viagem ${tripName}: tudo certo, ninguém deve nada.`
   const lines = transfers.map((t) => {
-    const rate = t.currency === 'BRL' ? null : rateFor(t.currency)
+    const rate = t.currency === 'BRL' ? null : rateFor(t.currency, { personId: t.fromId })
     const inBRL = rate ? ` (≈ ${formatBRL(Math.round(t.amount * rate))} a ${formatRate(rate)})` : ''
     return `• ${names.get(t.fromId) ?? '—'} → ${names.get(t.toId) ?? '—'}: ${formatMoney(t.amount, t.currency)}${inBRL}`
   })

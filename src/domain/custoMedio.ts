@@ -125,10 +125,14 @@ export function ledger(moves: WalletMove[], expenses: WalletExpense[], settlemen
   return { positions, expenseCosts, moveCosts }
 }
 
-/** Médio consolidado de cada moeda, somando todas as carteiras. */
-export function byCurrency(positions: Position[]): Omit<Position, 'walletId'>[] {
+/**
+ * Total e médio de cada moeda nas posições indicadas (ex.: as carteiras de um viajante), **só com saldo positivo**:
+ * carteira zerada ou negativa (falta lançar carga) não entra, para não distorcer o médio.
+ */
+export function positiveByCurrency(positions: Position[]): Omit<Position, 'walletId'>[] {
   const out = new Map<string, Omit<Position, 'walletId'>>()
   for (const p of positions) {
+    if (p.units <= 0) continue
     let c = out.get(p.currency)
     if (!c) out.set(p.currency, (c = { currency: p.currency, units: 0, cost: 0, avg: null }))
     c.units += p.units
