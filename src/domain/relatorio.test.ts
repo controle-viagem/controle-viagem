@@ -58,7 +58,7 @@ describe('prestação de contas', () => {
     // Alimentação: meu jantar R$ 150 + minha metade do táxi do Léo R$ 30 = R$ 180 de R$ 200 (90%).
     expect(r.budget?.categories.map((c) => [c.id, c.level])).toEqual([['alim', 'atencao']])
     // Tudo, menos as seções opcionais, desligadas por padrão: gastos previstos e extrato das carteiras.
-    expect(SECTIONS.filter((s) => !r.config.sections.includes(s))).toEqual(['previstos', 'extrato'])
+    expect(SECTIONS.filter((s) => !r.config.sections.includes(s))).toEqual(['previstos', 'extrato', 'divisao'])
     expect(r.forecast).toBeUndefined()
   })
 
@@ -67,7 +67,7 @@ describe('prestação de contas', () => {
     const r = buildReport({ ...input, methods }, { ...presetConfig('completo', []), personIds: ['eu', 'leo'], sections: ['meios'] })
     expect(r.methods).toEqual([
       { person: 'Eu', method: 'Pix', brl: 55000, estimated: false, count: 2 },
-      { person: 'Léo', method: 'Outro meio (sem controle)', brl: 6000, estimated: false, count: 1 },
+      { person: 'Léo', method: 'Outro meio', brl: 6000, estimated: false, count: 1 },
     ])
   })
 
@@ -89,6 +89,20 @@ describe('prestação de contas', () => {
     expect(buildReport(withWallet, { ...base, de: '2026-12-20' }).statements?.[0]).toMatchObject({ opening: 10000, closing: 7000, lines: [{ title: 'Lanche' }] })
     // Seção opcional: fora do modelo Completo.
     expect(presetConfig('completo', []).sections).not.toContain('extrato')
+  })
+
+  it('divisão de cada gasto: quem pagou quanto e a parte de cada um, com a privacidade dos nomes', () => {
+    const base = { ...presetConfig('completo', []), sections: ['divisao'] as typeof SECTIONS }
+    const comNomes = buildReport(input, base).divisions!
+    expect(comNomes[0]).toEqual({
+      date: '2026-12-21', description: 'Estacionamento', currency: 'BRL', total: 40000, pending: false,
+      payers: [{ name: 'Eu', amount: 40000 }],
+      shares: [{ name: 'Eu', amount: 10000 }, { name: 'Ana', amount: 10000 }, { name: 'João', amount: 10000 }, { name: 'Léo', amount: 10000 }],
+    })
+    // Sem nomes de terceiros: quem não foi escolhido vira uma linha só.
+    const semNomes = buildReport(input, { ...base, nomes: 'agrupar' }).divisions!
+    expect(semNomes[0].shares).toEqual([{ name: 'Eu', amount: 10000 }, { name: 'outras pessoas', amount: 30000 }])
+    expect(semNomes[2].payers).toEqual([{ name: 'outro viajante', amount: 6000 }])
   })
 
   it('gastos previstos: fora dos saldos, à parte na seção própria', () => {

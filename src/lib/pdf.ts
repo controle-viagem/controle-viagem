@@ -77,6 +77,12 @@ export function renderReportPdf(model: ReportModel, title: string, attachments?:
       headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       ...options,
+      // O título de cada coluna segue o alinhamento do conteúdo dela (valores à direita, com o título junto).
+      didParseCell: (data) => {
+        const align = (options.columnStyles as Record<number, { halign?: string }> | undefined)?.[data.column.index]?.halign
+        if (data.section === 'head' && align) data.cell.styles.halign = align as 'left' | 'center' | 'right'
+        options.didParseCell?.(data)
+      },
     })
     y = lastY() + 2
   }
@@ -260,6 +266,18 @@ export function renderReportPdf(model: ReportModel, title: string, attachments?:
         else table(['Carteira', 'Titular', 'Saldo', 'Custo médio', 'Custou'], rows.map((w) => [w.name, w.holder, money(w.units, w.currency), w.avg === null ? '-' : formatRate(w.avg), brl(w.cost)]), {
           columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
         })
+        break
+      }
+      case 'divisao': {
+        const list = model.divisions
+        if (!list) break
+        heading(key, `(${list.length})`)
+        if (list.length === 0) { note('Nenhum gasto.'); break }
+        note('Para conferência: em cada gasto, quanto cada pessoa pagou e a parte que coube a cada uma, na moeda do gasto. A diferença entre o que pagou e a parte vira saldo a acertar.')
+        const lines = (items: { name: string; amount: number }[], currency: string) => items.map((x) => `${x.name}: ${money(x.amount, currency)}`).join('\n')
+        table(['Data', 'Gasto', 'Total', 'Quem pagou', 'Parte de cada um'], list.map((d) => [
+          shortDate(d.date), d.pending ? `${d.description} (a pagar)` : d.description, money(d.total, d.currency), lines(d.payers, d.currency), lines(d.shares, d.currency),
+        ]), { columnStyles: { 0: { cellWidth: 14 }, 2: { halign: 'right' } } })
         break
       }
       case 'extrato': {

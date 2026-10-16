@@ -4,7 +4,7 @@ import { fullBRL, partBRL, totalsByMethod, type RateLookup } from './custoViagem
 import type { WalletCosts } from './despesa'
 import { involves, matchesFilter } from './filtro'
 import { budgetStatus, type BudgetStatus } from './orcamento'
-import { partOf, payersOf } from './rateio'
+import { partOf, payerOf, payersOf, sharesOf } from './rateio'
 import { summarize } from './resumo'
 import { balances, parties, partyBalances, suggest } from './saldos'
 import { holderLabel, walletsOf } from './titular'
@@ -20,11 +20,14 @@ function minusDays(iso: string, days: number) {
 
 /** Partes que o dono liga ou desliga na prestação de contas. */
 export type SectionKey =
-  | 'resumo' | 'categorias' | 'dias' | 'pessoas' | 'meios' | 'gastos' | 'saldos' | 'sugeridos' | 'acertos' | 'cambio' | 'carteiras' | 'orcamento' | 'previstos' | 'extrato'
+  | 'resumo' | 'categorias' | 'dias' | 'pessoas' | 'meios' | 'gastos' | 'saldos' | 'sugeridos' | 'acertos' | 'cambio' | 'carteiras' | 'orcamento' | 'previstos' | 'extrato' | 'divisao'
 
 export const SECTIONS: SectionKey[] = [
-  'resumo', 'categorias', 'dias', 'pessoas', 'meios', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento', 'previstos', 'extrato',
+  'resumo', 'categorias', 'dias', 'pessoas', 'meios', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento', 'previstos', 'extrato', 'divisao',
 ]
+
+/** Seções opcionais: desligadas por padrão, inclusive no modelo Completo. */
+export const OPTIONAL: SectionKey[] = ['previstos', 'extrato', 'divisao']
 
 export const SECTION_LABEL: Record<SectionKey, string> = {
   resumo: 'Resumo do custo',
@@ -41,6 +44,7 @@ export const SECTION_LABEL: Record<SectionKey, string> = {
   orcamento: 'Orçamento',
   previstos: 'Gastos previstos (a pagar)',
   extrato: 'Extrato das carteiras',
+  divisao: 'Divisão de cada gasto (auditoria)',
 }
 
 export interface ReportConfig {
@@ -74,7 +78,7 @@ export const PRESET_LABEL: Record<Preset, string> = {
 /** Configurações prontas; o dono ajusta a partir delas. */
 export function presetConfig(preset: Preset, personIds: string[]): ReportConfig {
   const base = { scope: 'envolvidos' as const, valores: 'parte' as const, moeda: 'ambas' as const, nomes: 'agrupar' as const }
-  if (preset === 'completo') return { ...base, personIds: [ME], sections: SECTIONS.filter((s) => s !== 'previstos' && s !== 'extrato'), nomes: 'mostrar' }
+  if (preset === 'completo') return { ...base, personIds: [ME], sections: SECTIONS.filter((s) => !OPTIONAL.includes(s)), nomes: 'mostrar' }
   if (preset === 'familia') {
     return { ...base, personIds, sections: ['resumo', 'categorias', 'dias', 'pessoas', 'gastos', 'saldos', 'sugeridos', 'acertos', 'cambio', 'carteiras', 'orcamento'] }
   }
@@ -159,6 +163,8 @@ export interface ReportModel {
   }
   wallets?: { name: string; holder: string; currency: string; units: number; avg: number | null; cost: number }[]
   budget?: BudgetStatus & { names: Map<string, string>; forNames: string }
+  /** Auditoria: em cada gasto incluído, quanto cada um pagou e a parte de cada um (terceiros conforme `nomes`). */
+  divisions?: { date: string; description: string; currency: string; total: number; pending: boolean; payers: { name: string; amount: number }[]; shares: { name: string; amount: number }[] }[]
   /** Extrato de cada carteira escolhida, por moeda, no período (com o saldo anterior e o saldo corrido). */
   statements?: { wallet: string; holder: string; currency: string; opening: number; closing: number; lines: { date: string; title: string; units: number; brl: number; balance: number }[] }[]
   /** Gastos a pagar que envolvem as pessoas escolhidas e o que caberia a cada uma quando forem pagos. */
@@ -237,7 +243,7 @@ export function buildReport(input: ReportInput, config: ReportConfig): ReportMod
   if (has('meios')) {
     model.methods = totalsByMethod(expenses, personIds, walletCosts, rateFor).map((r) => ({
       person: realName(r.personId),
-      method: r.methodId ? (input.methods?.get(r.methodId)?.name ?? '—') : r.personId === ME ? 'Sem meio informado' : 'Outro meio (sem controle)',
+      method: r.methodId ? (input.methods?.get(r.methodId)?.name ?? '—') : r.personId === ME ? 'Sem meio informado' : 'Outro meio',
       brl: r.brl,
       estimated: r.estimated,
       count: r.count,
@@ -351,6 +357,26 @@ export function buildReport(input: ReportInput, config: ReportConfig): ReportMod
         const w = theirWallets.find((x) => x.id === p.walletId)!
         return { name: w.name, holder: holderLabel(w), currency: p.currency, units: p.units, avg: p.avg, cost: p.cost }
       })
+  }
+  if (has('divisao')) {
+    // Soma por nome: terceiros sem nome viram uma linha só ("outro viajante" / "outras pessoas").
+    const byName = (list: { id: string; amount: number }[], other: string) => {
+      const out = new Map<string, number>()
+      for (const x of list) {
+        const name = shown(x.id) ?? other
+        out.set(name, (out.get(name) ?? 0) + x.amount)
+      }
+      return [...out].map(([name, amount]) => ({ name, amount }))
+    }
+    model.divisions = expenses.map((e) => ({
+      date: e.date,
+      description: e.description || (e.subcategoryId ? categoryName(e.subcategoryId) : '') || categoryName(e.categoryId),
+      currency: e.currency,
+      total: e.amount,
+      pending: !!e.pending,
+      payers: byName(payersOf(e).map((p) => ({ id: p.personId, amount: p.amount })), OTHER),
+      shares: byName([...sharesOf(e.amount, e.split, payerOf(e))].map(([id, amount]) => ({ id, amount })), 'outras pessoas'),
+    }))
   }
   if (has('extrato')) {
     // Período: o escolhido na prestação de contas; sem ele, o mesmo das cargas (seis meses antes até o fim da viagem).

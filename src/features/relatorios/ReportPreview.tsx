@@ -168,6 +168,22 @@ export function ReportPreview({ model, title }: { model: ReportModel; title: str
                 )}
               </Section>
             ) : null
+          case 'divisao':
+            return model.divisions ? (
+              <Section key={key} title={title}>
+                {model.divisions.length === 0 ? empty('Nenhum gasto.') : model.divisions.slice(0, 20).map((d, i) => (
+                  <div key={i} className="space-y-0.5 border-b border-slate-100 pb-1.5 text-sm last:border-0">
+                    <p className="flex justify-between gap-3">
+                      <span className="min-w-0 truncate font-medium">{shortDate(d.date)} · {d.description}{d.pending && <span className="text-amber-600"> · a pagar</span>}</span>
+                      <span className="shrink-0 tabular-nums">{formatMoney(d.total, d.currency)}</span>
+                    </p>
+                    <p className="text-xs text-slate-500">Pagou: {d.payers.map((p) => `${p.name} ${formatMoney(p.amount, d.currency)}`).join(' · ')}</p>
+                    <p className="text-xs text-slate-500">Parte de cada um: {d.shares.map((p) => `${p.name} ${formatMoney(p.amount, d.currency)}`).join(' · ')}</p>
+                  </div>
+                ))}
+                {model.divisions.length > 20 && empty(`… e mais ${model.divisions.length - 20} no PDF.`)}
+              </Section>
+            ) : null
           case 'extrato':
             return model.statements ? (
               <Section key={key} title={title}>

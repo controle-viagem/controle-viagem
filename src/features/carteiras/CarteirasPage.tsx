@@ -1,7 +1,9 @@
 import { ArrowDownToLine, ArrowLeftRight, ChevronRight, CircleAlert, HandCoins, Plus, Repeat, ShoppingBag, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { useApp } from '../../app/AppContext'
-import { WALLET_MOVE_LABEL, WALLET_TYPE_LABEL, type PaymentMethod, type Settlement, type WalletMove, type WalletMoveKind } from '../../db/types'
+import { db } from '../../db/db'
+import { ME, WALLET_MOVE_LABEL, WALLET_TYPE_LABEL, type PaymentMethod, type Settlement, type WalletMove, type WalletMoveKind } from '../../db/types'
 import { positiveByCurrency, saleResult, type Position } from '../../domain/custoMedio'
 import { currencyName } from '../../domain/moeda'
 import { formatBRL, formatMoney, formatRate, shortDate } from '../../lib/format'
@@ -11,7 +13,8 @@ import { CurrencyBadge } from '../../components/Badges'
 import { balanceClass, VALUE_STYLE } from '../../components/valueStyle'
 import { useWalletData, type WalletData, type WalletSpend } from './useWalletData'
 import { useNavigate } from 'react-router-dom'
-import { holderLabel, isMine } from '../../domain/titular'
+import { holderLabel, isMine, walletsOf } from '../../domain/titular'
+import { CostSelector, useCostPeople } from '../inicio/CostSelector'
 
 export const KIND_ICON: Record<WalletMoveKind, LucideIcon> = {
   carga: ArrowDownToLine,
@@ -45,6 +48,29 @@ export function PositionLine({ position: p, negativeOn }: { position: Omit<Posit
         </p>
       )}
     </li>
+  )
+}
+
+/**
+ * Total de um viajante em cada moeda, só com saldos positivos, e quanto vale em reais pelo médio das carteiras dele
+ * (decisão do dono, 1.3.0). Usado em Carteiras e no Início.
+ */
+export function HolderTotals({ totals, negatives }: { totals: Omit<Position, 'walletId'>[]; negatives: number }) {
+  if (totals.length === 0 && negatives === 0) return null
+  return (
+    <p className="text-xs text-slate-500">
+      {totals.length > 0 && 'Total: '}
+      {totals.map((t, i) => (
+        <span key={t.currency}>
+          {i > 0 && ' · '}
+          <span className={`font-semibold tabular-nums ${VALUE_STYLE.saldo}`}>{formatMoney(t.units, t.currency)}</span>
+          {' ≈ '}
+          <span className="font-semibold tabular-nums text-slate-700">{formatBRL(t.cost)}</span>
+          {t.avg !== null && ` (médio ${formatRate(t.avg)})`}
+        </span>
+      ))}
+      {negatives > 0 && <span className="text-amber-600">{totals.length > 0 && ' · '}{negatives} saldo{negatives > 1 ? 's' : ''} negativo{negatives > 1 ? 's' : ''} fora do total</span>}
+    </p>
   )
 }
 
@@ -135,8 +161,16 @@ function MoveRow({ row, data, names, onOpen }: { row: Row; data: WalletData; nam
 }
 
 export function CarteirasPage() {
-  const { openForm } = useApp()
+  const { openForm, trip } = useApp()
   const data = useWalletData()
+  // Filtro por viajante (decisão do dono, 1.3.0): o mesmo "Custo de" do Início e dos Relatórios.
+  const travelers =
+    useLiveQuery(async () => {
+      const me = await db.people.get(ME)
+      const others = trip ? await db.people.where('tripId').equals(trip.id).sortBy('name') : []
+      return [...(me ? [me] : []), ...others]
+    }, [trip?.id]) ?? []
+  const cost = useCostPeople(trip, travelers)
   const navigate = useNavigate()
   const [moveForm, setMoveForm] = useState<{ kind: WalletMoveKind; move?: WalletMove } | null>(null)
   const [walletForm, setWalletForm] = useState<{ wallet?: PaymentMethod } | null>(null)
@@ -145,9 +179,17 @@ export function CarteirasPage() {
 
   const active = data.wallets.filter((w) => !w.archived)
   const names = new Map(data.wallets.map((w) => [w.id, w.name]))
+  const filtering = !!trip && travelers.length > 1
+  const visibleIds = filtering
+    ? new Set(travelers.filter((p) => cost.personIds.includes(p.id)).flatMap((p) => walletsOf(p, data.wallets).map((w) => w.id)))
+    : null
+  const listed = data.wallets.filter((w) => !w.archived || walletPositions(data, w.id).length > 0)
+  // Carteiras de quem não está nesta viagem não entram no filtro: avisa quantas são.
+  const outsideTrip = filtering ? listed.filter((w) => !travelers.some((p) => walletsOf(p, [w]).length > 0)).length : 0
+  const visible = (id?: string | null) => !!id && (!visibleIds || visibleIds.has(id))
   // Minhas primeiro, depois as dos pares, agrupadas pelo titular.
-  const shownWallets = data.wallets
-    .filter((w) => !w.archived || walletPositions(data, w.id).length > 0)
+  const shownWallets = listed
+    .filter((w) => visible(w.id))
     .sort((a, b) => Number(!isMine(a)) - Number(!isMine(b)) || holderLabel(a).localeCompare(holderLabel(b), 'pt-BR'))
   // Total de cada viajante (titular), só com saldos positivos: carteira sem carga ou negativa distorceria o médio.
   function holderTotal(holder: string) {
@@ -158,11 +200,11 @@ export function CarteirasPage() {
 
   const rows: Row[] = [
     ...data.moves
-      .filter((m) => !filter || m.walletId === filter || m.toWalletId === filter)
+      .filter((m) => (visible(m.walletId) || visible(m.toWalletId)) && (!filter || m.walletId === filter || m.toWalletId === filter))
       .map((move) => ({ date: move.date, createdAt: move.createdAt, move })),
-    ...data.spends.filter((s) => !filter || s.methodId === filter).map((spend) => ({ date: spend.date, createdAt: spend.createdAt, spend })),
+    ...data.spends.filter((s) => visible(s.methodId) && (!filter || s.methodId === filter)).map((spend) => ({ date: spend.date, createdAt: spend.createdAt, spend })),
     ...data.settlements
-      .filter((s) => !filter || s.fromWalletId === filter || s.toWalletId === filter)
+      .filter((s) => (visible(s.fromWalletId) || visible(s.toWalletId)) && (!filter || s.fromWalletId === filter || s.toWalletId === filter))
       .map((settlement) => ({ date: settlement.date, createdAt: settlement.createdAt, settlement })),
   ].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
 
@@ -172,6 +214,18 @@ export function CarteirasPage() {
         <h1 className="text-xl font-bold">Carteiras</h1>
         <p className="text-sm text-slate-500">Cartões multimoeda e espécie. Valem para todas as viagens: a sobra de uma segue para a próxima.</p>
       </div>
+
+      {filtering && trip && (
+        <div>
+          <CostSelector trip={trip} travelers={travelers} personIds={cost.personIds} onChange={cost.choose} label="Carteiras de" />
+          {outsideTrip > 0 && (
+            <p className="mt-1 px-1 text-xs text-slate-500">
+              {outsideTrip} {outsideTrip === 1 ? 'carteira é' : 'carteiras são'} de pessoas fora desta viagem e não {outsideTrip === 1 ? 'aparece' : 'aparecem'} aqui.
+            </p>
+          )}
+        </div>
+      )}
+
 
       {active.length === 0 ? (
         <section className="card space-y-3 p-4 text-sm">
@@ -215,12 +269,7 @@ export function CarteirasPage() {
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {isMine(w) ? 'Minhas carteiras' : `Carteiras de ${holderLabel(w)}`}
                 </h2>
-                {ids.size > 1 && totals.length > 0 && (
-                  <p className="text-xs text-slate-500">
-                    Total: {totals.map((t) => `${formatMoney(t.units, t.currency)} (médio ${formatRate(t.avg!)})`).join(' · ')}
-                    {negatives > 0 && <span className="text-amber-600"> · {negatives} saldo{negatives > 1 ? 's' : ''} negativo{negatives > 1 ? 's' : ''} fora do total</span>}
-                  </p>
-                )}
+                {ids.size > 0 && <HolderTotals totals={totals} negatives={negatives} />}
               </div>
             )
           })()}
@@ -263,10 +312,10 @@ export function CarteirasPage() {
         <section>
           <div className="mb-1 flex items-center justify-between gap-2 px-1">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Movimentos e gastos</h2>
-            {data.wallets.length > 1 && (
+            {shownWallets.length > 1 && (
               <select className="field !w-auto !py-1 text-sm" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Carteira">
                 <option value="">Todas as carteiras</option>
-                {data.wallets.map((w) => (
+                {shownWallets.map((w) => (
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>

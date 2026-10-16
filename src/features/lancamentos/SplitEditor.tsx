@@ -204,7 +204,7 @@ export function SplitEditor({ trip, people, methods, amount, currency, state, on
                     {methodsOfPerson(p).map((m) => (
                       <option key={m.id} value={m.id}>{m.name}{m.kind === 'carteira' ? ' (sai do saldo)' : m.kind === 'cartao_brl' && currency !== 'BRL' ? ' (com IOF e spread)' : ''}</option>
                     ))}
-                    <option value="">Outro meio (sem controle)</option>
+                    <option value="">Outro meio</option>
                   </select>
                 )}
               </div>

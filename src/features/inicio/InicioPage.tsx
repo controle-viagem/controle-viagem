@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../../app/AppContext'
 import { CurrencyBadge } from '../../components/Badges'
-import { CategoryBreakdown } from '../../components/CategoryBreakdown'
+import { Breakdown } from '../../components/Breakdown'
 import { balanceClass, signedMoney, VALUE_STYLE } from '../../components/valueStyle'
+import { positiveByCurrency } from '../../domain/custoMedio'
 import { summarize } from '../../domain/resumo'
 import { isEstimate } from '../../domain/despesa'
 import { daysBetween, dayNumber, tripDays, tripStatus } from '../../domain/viagem'
@@ -21,7 +22,7 @@ import { usePending } from '../acertos/usePending'
 import { CloseTripDialog } from '../viagens/CloseTripDialog'
 import { setTripClosed } from '../../db/repo'
 import { MethodIcon } from '../ajustes/MeiosPage'
-import { PositionLine, walletPositions } from '../carteiras/CarteirasPage'
+import { HolderTotals, PositionLine, walletPositions } from '../carteiras/CarteirasPage'
 import { useWalletData } from '../carteiras/useWalletData'
 import { ExpenseRow } from '../lancamentos/ExpenseRow'
 import { lancamentosLink } from '../lancamentos/LancamentosPage'
@@ -68,9 +69,21 @@ export function InicioPage() {
     for (const [currency, value] of settle.balances.get(id) ?? []) balanceOfChosen.set(currency, (balanceOfChosen.get(currency) ?? 0) + value)
   }
   const myBalance = [...balanceOfChosen].filter(([, value]) => value !== 0)
-  // Saldos em moeda: as minhas carteiras e as dos viajantes desta viagem (pelo nome do titular).
-  const tripWallets = data.travelers.flatMap((p) => walletsOf(p, wallet.wallets).map((w) => ({ w, holder: p })))
-  const wallets = tripWallets.map(({ w, holder }) => ({ w, holder, positions: walletPositions(wallet, w.id) })).filter((x) => x.positions.length > 0)
+  // Saldos em moeda: só das pessoas do "Custo de" (pelo nome do titular), agrupados por pessoa, com o total dela em
+  // reais pelo médio das carteiras dela (decisão do dono, 1.3.0).
+  const holders = data.travelers
+    .filter((p) => personIds.includes(p.id))
+    .map((p) => {
+      const ws = walletsOf(p, wallet.wallets).map((w) => ({ w, positions: walletPositions(wallet, w.id) })).filter((x) => x.positions.length > 0)
+      const ids = new Set(ws.map((x) => x.w.id))
+      const all = wallet.ledger.positions.filter((pos) => ids.has(pos.walletId))
+      return { person: p, wallets: ws, totals: positiveByCurrency(all), negatives: all.filter((pos) => pos.units < 0).length }
+    })
+    .filter((h) => h.wallets.length > 0)
+  // Por pessoa: só com mais de uma pessoa no "Custo de" (decisão do dono, 1.3.0).
+  const personTotals = personIds.length > 1
+    ? personIds.map((id) => ({ id, name: data.people.get(id)?.name ?? '—', total: summarize(trip, expenses, today, walletCosts, { personIds: [id], rateFor }).total }))
+    : []
   const status = tripStatus(trip, today)
   const when =
     status === 'planejada'
@@ -219,7 +232,7 @@ export function InicioPage() {
         </section>
       )}
 
-      {wallets.length > 0 && (
+      {holders.length > 0 && (
         <section className="card p-4">
           <Link to="/carteiras" className="flex items-center justify-between">
             <h2 className="font-semibold">Saldos em moeda</h2>
@@ -227,23 +240,36 @@ export function InicioPage() {
               Ver movimentos <ChevronRight size={14} />
             </span>
           </Link>
-          {wallets.map(({ w, holder, positions }) => (
-            <div key={w.id} className="mt-2">
-              <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                <MethodIcon method={w} size={14} /> {w.name}
-                {hasOthers && <span className="ml-auto flex items-center gap-1"><Avatar id={holder.id} name={holder.name} size="sm" /> {holder.name}</span>}
-              </p>
-              <ul className="divide-y divide-slate-100">
-                {positions.map(({ position, negativeOn }) => (
-                  <PositionLine key={position.currency} position={position} negativeOn={negativeOn} />
-                ))}
-              </ul>
+          {holders.map(({ person, wallets: ws, totals, negatives }) => (
+            <div key={person.id} className="mt-3 space-y-1">
+              {(hasOthers || ws.length > 1) && (
+                <div>
+                  {hasOthers && (
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      <Avatar id={person.id} name={person.name} size="sm" /> {person.name}
+                    </p>
+                  )}
+                  {ws.length > 1 && <HolderTotals totals={totals} negatives={negatives} />}
+                </div>
+              )}
+              {ws.map(({ w, positions }) => (
+                <div key={w.id}>
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <MethodIcon method={w} size={14} /> {w.name}
+                  </p>
+                  <ul className="divide-y divide-slate-100">
+                    {positions.map(({ position, negativeOn }) => (
+                      <PositionLine key={position.currency} position={position} negativeOn={negativeOn} />
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           ))}
         </section>
       )}
 
-      <CategoryBreakdown rows={s.byCategory} categories={categories} />
+      <Breakdown rows={s.byCategory} categories={categories} people={personTotals} />
 
       {expenses.length > 0 && (
         <section>

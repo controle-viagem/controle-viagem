@@ -228,6 +228,20 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   gastos a pagar. Seção `meios` da prestação de contas (entra no Completo) e quadro em Relatórios. O filtro "Meios"
   da lista acha o meio de qualquer pagador.
 
+### Visões por viajante e auditoria (versão 1.3.0, decisões do dono)
+
+- **Início, "Saldos em moeda"**: só as carteiras das pessoas do "Custo de", agrupadas por pessoa, com o total dela
+  por moeda em reais pelo médio das carteiras dela (`HolderTotals` em `CarteirasPage`, só saldos positivos).
+- **Carteiras**: filtro "Carteiras de" com o mesmo "Custo de" das outras abas (`useCostPeople`); carteiras de quem
+  não está na viagem não aparecem (com aviso). Total por viajante também em reais.
+- **"Por categoria" / "Por pessoa"** (`components/Breakdown.tsx`, no Início e em Relatórios): dois botões; "Por pessoa"
+  só com mais de uma pessoa escolhida e só com as escolhidas.
+- **Auditoria** (seção opcional `divisao` da prestação de contas, "Divisão de cada gasto"): em cada gasto, quanto cada
+  um pagou e a parte de cada um; terceiros seguem a regra de nomes ("outro viajante" / "outras pessoas").
+  Seções opcionais (`OPTIONAL` em `relatorio.ts`): previstos, extrato e divisão, desligadas também no Completo.
+- PDF: o título de cada coluna segue o alinhamento do conteúdo (helper `table` em `lib/pdf.ts`).
+- Pagamento de outra pessoa sem meio cadastrado aparece como "Outro meio" (sem "(sem controle)").
+
 ### Página da carteira e extrato (versão 1.2.0)
 
 - **Mesmo dia** (decisão do dono): o que só entra (carga, ajuste para mais, acerto recebido) conta antes das trocas
