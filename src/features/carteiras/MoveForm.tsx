@@ -4,6 +4,7 @@ import { useApp } from '../../app/AppContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Modal } from '../../components/Modal'
 import { MoneyInput } from '../../components/MoneyInput'
+import { PtaxButton } from '../../components/PtaxButton'
 import { deleteWalletMove, saveWalletMove } from '../../db/repo'
 import { WALLET_MOVE_LABEL, type PaymentMethod, type WalletMove, type WalletMoveKind } from '../../db/types'
 import { cardCharge, effectiveRate } from '../../domain/cambio'
@@ -212,6 +213,7 @@ export function MoveForm({ kind, move, wallets, data, onClose }: Props) {
                   <input id="mv-iof" className="field" inputMode="decimal" placeholder="0" value={iof} onChange={(e) => setIof(e.target.value)} />
                 </div>
               </div>
+              <PtaxButton currency={currency} onRate={(r) => setRate(decimalText(r))} />
               <div>
                 <label className="label !text-xs" htmlFor="mv-tarifa-brl">Tarifa em reais</label>
                 <MoneyInput id="mv-tarifa-brl" value={brlFee} onChange={setBrlFee} />

@@ -1,6 +1,7 @@
-import { Camera, ImagePlus, Loader2, Paperclip, X } from 'lucide-react'
-import { useRef, useState, type ChangeEvent } from 'react'
+import { Camera, CloudDownload, ImagePlus, Loader2, Paperclip, X } from 'lucide-react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { shrinkImage, type ShrunkImage } from '../../lib/image'
+import { fetchPhoto } from '../../sync/engine'
 import { ReceiptViewer } from './ReceiptViewer'
 
 export interface ReceiptDraft extends ShrunkImage {
@@ -22,6 +23,26 @@ export function ReceiptsField({ photos, onAdd, onRemove, readOnly }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [viewing, setViewing] = useState<number | null>(null)
+  // Fotos lançadas em outro aparelho chegam sem a imagem: são baixadas agora, ao abrir o gasto.
+  const [download, setDownload] = useState<Record<string, 'baixando' | 'falhou'>>({})
+  const missing = photos.filter((p) => p.id && !p.dataUrl).map((p) => p.id!)
+  const missingKey = missing.join(',')
+  useEffect(() => {
+    if (!missingKey) return
+    let alive = true
+    void (async () => {
+      for (const id of missingKey.split(',')) {
+        if (!alive) return
+        setDownload((d) => ({ ...d, [id]: 'baixando' }))
+        // Sucesso grava a foto no aparelho e a tela se atualiza sozinha; sem foto na nuvem ou sem internet, falhou.
+        const ok = await fetchPhoto(id).catch(() => null)
+        if (alive && !ok) setDownload((d) => ({ ...d, [id]: 'falhou' }))
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [missingKey])
 
   async function pick(e: ChangeEvent<HTMLInputElement>) {
     const files = [...(e.target.files ?? [])]
@@ -48,9 +69,19 @@ export function ReceiptsField({ photos, onAdd, onRemove, readOnly }: Props) {
         <div className="flex flex-wrap gap-2">
           {photos.map((p, i) => (
             <div key={p.id ?? `novo-${i}`} className="relative">
-              <button type="button" onClick={() => setViewing(i)} className="block overflow-hidden rounded-lg ring-1 ring-slate-200" aria-label={`Ver comprovante ${i + 1}`}>
-                <img src={p.dataUrl} alt="" className="h-16 w-16 object-cover" />
-              </button>
+              {p.dataUrl ? (
+                <button type="button" onClick={() => setViewing(i)} className="block overflow-hidden rounded-lg ring-1 ring-slate-200" aria-label={`Ver comprovante ${i + 1}`}>
+                  <img src={p.dataUrl} alt="" className="h-16 w-16 object-cover" />
+                </button>
+              ) : (
+                <span
+                  className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-lg bg-white text-center text-[10px] leading-tight text-slate-500 ring-1 ring-slate-200"
+                  title={download[p.id!] === 'falhou' ? 'Sem internet, ou a foto ainda não chegou ao OneDrive. Abra o gasto de novo mais tarde.' : 'Baixando a foto do OneDrive'}
+                >
+                  {download[p.id!] === 'falhou' ? <CloudDownload size={18} /> : <Loader2 size={18} className="animate-spin" />}
+                  {download[p.id!] === 'falhou' ? 'na nuvem' : 'baixando'}
+                </span>
+              )}
               {!readOnly && (
                 <button
                   type="button"
@@ -79,6 +110,9 @@ export function ReceiptsField({ photos, onAdd, onRemove, readOnly }: Props) {
         </div>
       )}
       {error && <p className="text-xs text-rose-600">{error}</p>}
+      {photos.some((p) => p.id && !p.dataUrl && download[p.id] === 'falhou') && (
+        <p className="text-xs text-slate-500">Foto lançada em outro aparelho: sem internet (ou ainda não chegou ao OneDrive). Abra o gasto de novo mais tarde.</p>
+      )}
       {viewing !== null && <ReceiptViewer photos={photos} start={viewing} onClose={() => setViewing(null)} />}
     </section>
   )

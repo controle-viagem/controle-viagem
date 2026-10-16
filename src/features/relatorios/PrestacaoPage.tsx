@@ -7,6 +7,7 @@ import { db } from '../../db/db'
 import { setLocal } from '../../db/repo'
 import { ME } from '../../db/types'
 import { buildReport, presetConfig, PRESET_LABEL, SECTION_LABEL, SECTIONS, type Preset, type ReportConfig, type SectionKey } from '../../domain/relatorio'
+import { fetchPhoto } from '../../sync/engine'
 import { CostSelector } from '../inicio/CostSelector'
 import { myGroup } from '../acertos/tripBalances'
 import { NoTrip } from '../viagens/NoTrip'
@@ -115,8 +116,18 @@ export function PrestacaoPage() {
         ? await db.receipts.where('expenseId').anyOf([...includedIds]).sortBy('createdAt')
         : []
       const attachments = new Map<string, { dataUrl: string; width: number; height: number }[]>()
-      for (const p of photos) attachments.set(p.expenseId, [...(attachments.get(p.expenseId) ?? []), p])
+      let missing = 0
+      for (const p of photos) {
+        // Foto lançada em outro aparelho e ainda não aberta aqui: baixa agora do OneDrive.
+        const dataUrl = p.dataUrl || (await fetchPhoto(p.id).catch(() => null))
+        if (!dataUrl) {
+          missing++
+          continue
+        }
+        attachments.set(p.expenseId, [...(attachments.get(p.expenseId) ?? []), { ...p, dataUrl }])
+      }
       const blob = renderReportPdf(model, title, attachments)
+      if (missing) setError(`${missing} ${missing === 1 ? 'foto ficou' : 'fotos ficaram'} de fora: ${missing === 1 ? 'está' : 'estão'} só no OneDrive e não deu para baixar agora (sem internet?).`)
       const name = `${slug(title)}-${slug(trip!.name)}-${slug(model.forNames)}.pdf`
       setFile(new File([blob], name, { type: 'application/pdf' }))
     } catch (e) {

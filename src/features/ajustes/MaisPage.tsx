@@ -1,4 +1,4 @@
-import { Archive, Calculator, ChartColumn, ChevronRight, CreditCard, DatabaseBackup, Luggage, SunMoon, Tags, WalletCards } from 'lucide-react'
+import { Archive, Calculator, ChartColumn, ChevronRight, Cloud, CreditCard, DatabaseBackup, Luggage, SunMoon, Tags, WalletCards } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const READY = [
@@ -10,6 +10,7 @@ const READY = [
   { to: '/mais/categorias', label: 'Categorias e subcategorias', hint: 'Transporte, hospedagem, alimentação…', icon: Tags },
   { to: '/mais/arquivados', label: 'Arquivados', hint: 'Restaurar categorias e meios excluídos', icon: Archive },
   { to: '/mais/aparencia', label: 'Aparência', hint: 'Modo claro, escuro ou automático', icon: SunMoon },
+  { to: '/mais/sincronizacao', label: 'Sincronização', hint: 'Mesmos dados em todos os aparelhos, pelo OneDrive', icon: Cloud },
   { to: '/mais/backup', label: 'Backup dos dados', hint: 'Salvar em arquivo, restaurar ou apagar tudo', icon: DatabaseBackup },
 ]
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  emptySyncData, mergeData, parseSync, serializeSync, type Deletion, type Row, type SyncData,
+  emptySyncData, keepLocalPhotos, mergeData, parseSync, photosToDelete, photosToUpload, serializeSync, withoutPhotos, type Deletion,
+  type Row, type SyncData,
 } from './sync'
 
 const T1 = '2026-10-13T10:00:00.000Z'
@@ -95,5 +96,32 @@ describe('mergeData', () => {
     expect(ids(ab)).toEqual(ids(ba))
     expect(ab.tables.expenses.find((r) => r.id === 'c')).toEqual(tx('c', T3, 7))
     expect(ab.deletions.map((d) => d.id).sort()).toEqual(ba.deletions.map((d) => d.id).sort())
+  })
+})
+
+describe('fotos dos comprovantes na sincronização', () => {
+  const photo = (id: string, dataUrl: string): Row => ({ id, updatedAt: T1, expenseId: 'g', dataUrl })
+
+  it('o arquivo de dados vai sem as imagens, e a junção não as considera mudança', () => {
+    const local = emptySyncData()
+    local.tables.receipts = [photo('r1', 'data:image/jpeg;base64,AAA')]
+    const cloud = withoutPhotos(local)
+    expect(cloud.tables.receipts).toEqual([{ id: 'r1', updatedAt: T1, expenseId: 'g' }])
+    expect(local.tables.receipts[0].dataUrl).toBe('data:image/jpeg;base64,AAA')
+    expect(mergeData(local, cloud)).toMatchObject({ localChanged: false, remoteChanged: false })
+  })
+
+  it('o que chega da nuvem mantém a foto que o aparelho já tem; sem ela, fica para baixar', () => {
+    const incoming = [{ id: 'r1', updatedAt: T2 }, { id: 'r2', updatedAt: T1 }]
+    expect(keepLocalPhotos(incoming, [photo('r1', 'data:A')])).toEqual([
+      { id: 'r1', updatedAt: T2, dataUrl: 'data:A' },
+      { id: 'r2', updatedAt: T1, dataUrl: '' },
+    ])
+  })
+
+  it('sobe só as fotos novas deste aparelho e apaga da nuvem as dos comprovantes excluídos', () => {
+    expect(photosToUpload([photo('r1', 'data:A'), photo('r2', ''), photo('r3', 'data:C')], new Set(['r1']))).toEqual(['r3'])
+    const deletions: Deletion[] = [{ table: 'receipts', id: 'r1', deletedAt: T1 }, { table: 'expenses', id: 'g', deletedAt: T1 }, { table: 'receipts', id: 'r2', deletedAt: T1 }]
+    expect(photosToDelete(deletions, new Set(['r2']))).toEqual(['r1'])
   })
 })

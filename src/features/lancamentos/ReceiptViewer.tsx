@@ -28,7 +28,11 @@ export function ReceiptViewer({ photos, start, onClose }: { photos: { dataUrl: s
         </button>
       </div>
       <div className="relative min-h-0 flex-1">
-        <img src={photo.dataUrl} alt={`Comprovante ${index + 1}`} className="h-full w-full object-contain" />
+        {photo.dataUrl ? (
+          <img src={photo.dataUrl} alt={`Comprovante ${index + 1}`} className="h-full w-full object-contain" />
+        ) : (
+          <p className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">Esta foto ainda não foi baixada do OneDrive.</p>
+        )}
         {count > 1 && (
           <>
             <button type="button" className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white" onClick={() => go(-1)} aria-label="Anterior">

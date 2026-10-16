@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Modal } from '../../components/Modal'
 import { MoneyInput } from '../../components/MoneyInput'
+import { PtaxButton } from '../../components/PtaxButton'
 import { deleteSettlementBatch, saveSettlementBatch } from '../../db/repo'
 import type { PaymentMethod, Person, Settlement, Trip } from '../../db/types'
 import { walletsOf } from '../../domain/titular'
@@ -205,6 +206,7 @@ export function SettlementForm({ trip, parties, balances, rateFor, currencies, d
                   {percent('ac-spread', 'Spread (%)', spread, setSpread)}
                   {percent('ac-iof', 'IOF (%)', iof, setIof)}
                 </div>
+                <PtaxButton currency={currency} onRate={(r) => setRate(decimalText(r))} />
                 {charge && brlTyped === null && (
                   <dl className="space-y-0.5 text-sm">
                     <div className="flex justify-between text-slate-500">

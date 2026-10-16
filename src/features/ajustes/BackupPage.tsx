@@ -4,6 +4,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { db } from '../../db/db'
 import { exportAll, importAll, LAST_BACKUP, resetAll } from '../../db/repo'
 import { parseBackup } from '../../domain/backup'
+import { disconnect, isConnected, replaceRemote } from '../../sync/engine'
 import { BackLink } from './BackLink'
 
 const dateTime = (iso: string) =>
@@ -35,8 +36,12 @@ export function BackupPage() {
       const when = backup.exportedAt ? ` de ${dateTime(backup.exportedAt)}` : ''
       const trips = backup.data.trips.length
       const total = backup.data.expenses.length
-      if (!confirm(`Restaurar o backup${when}, com ${trips} viagens e ${total} gastos?\n\nTodos os dados atuais deste aparelho serão substituídos.`)) return
+      const scope = isConnected()
+        ? 'Todos os dados atuais serão substituídos, neste aparelho, no OneDrive e nos outros aparelhos conectados.'
+        : 'Todos os dados atuais deste aparelho serão substituídos.'
+      if (!confirm(`Restaurar o backup${when}, com ${trips} viagens e ${total} gastos?\n\n${scope}`)) return
       await importAll(backup)
+      await replaceRemote()
       setMessage({ ok: true, text: `Backup restaurado: ${trips} viagens e ${total} gastos.` })
     } catch (error) {
       setMessage({ ok: false, text: error instanceof Error ? error.message : 'Não foi possível restaurar o backup.' })
@@ -45,8 +50,16 @@ export function BackupPage() {
 
   async function reset() {
     if (!confirm('Apagar TODAS as viagens, gastos, categorias e meios de pagamento deste aparelho?\n\nIsso não pode ser desfeito. Faça um backup antes se tiver dúvida.')) return
+    // Apagar é só neste aparelho: desconecta antes, senão a sincronização traria tudo de volta.
+    const wasConnected = isConnected()
+    await disconnect()
     await resetAll()
-    setMessage({ ok: true, text: 'Dados apagados. O app voltou aos cadastros iniciais.' })
+    setMessage({
+      ok: true,
+      text: wasConnected
+        ? 'Dados apagados neste aparelho, que foi desconectado da sincronização. O que está no OneDrive não foi alterado.'
+        : 'Dados apagados. O app voltou aos cadastros iniciais.',
+    })
   }
 
   return (
@@ -68,6 +81,7 @@ export function BackupPage() {
         <p className="text-sm text-slate-500">
           {counts?.trips ?? 0} viagens e {counts?.expenses ?? 0} gastos neste aparelho.{' '}
           {!!counts?.receipts && `As ${counts.receipts} fotos de comprovantes também entram (o arquivo fica com uns ${Math.max(1, Math.round(counts.receipts * 0.35))} MB). `}
+          {!!counts?.receipts && isConnected() && 'Fotos que estão só no OneDrive (lançadas em outro aparelho e ainda não abertas aqui) ficam de fora; elas continuam guardadas lá. '}
           {typeof last?.value === 'string' ? `Último backup em ${dateTime(last.value)}.` : 'Nenhum backup feito ainda.'}
         </p>
         <button className="btn btn-primary" onClick={download}>

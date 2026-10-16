@@ -113,3 +113,30 @@ export function mergeData(local: SyncData, remote: SyncData): MergeResult {
   const merged = fingerprint(data)
   return { data, localChanged: merged !== fingerprint(local), remoteChanged: merged !== fingerprint(remote) }
 }
+
+// ---------- fotos dos comprovantes ----------
+// A imagem (`dataUrl`) não vai no arquivo de dados: cada foto é um arquivo próprio na nuvem, que sobe uma vez e é
+// baixado só quando alguém abre o comprovante. No arquivo de dados o comprovante vai sem a imagem.
+
+/** Os dados como vão para a nuvem: comprovantes sem a imagem. */
+export function withoutPhotos(data: SyncData): SyncData {
+  const receipts = data.tables.receipts.map(({ dataUrl: _photo, ...row }) => row as Row)
+  return { ...data, tables: { ...data.tables, receipts } }
+}
+
+/**
+ * Comprovantes a gravar no aparelho: os que chegam sem imagem ficam com a imagem que o aparelho já tem; sem ela,
+ * com `dataUrl` vazio (a foto é baixada quando alguém abrir o comprovante).
+ */
+export function keepLocalPhotos(incoming: Row[], local: Row[]): Row[] {
+  const photos = new Map(local.filter((r) => typeof r.dataUrl === 'string' && r.dataUrl).map((r) => [rowKey(r), r.dataUrl]))
+  return incoming.map((r) => (typeof r.dataUrl === 'string' && r.dataUrl ? r : { ...r, dataUrl: photos.get(rowKey(r)) ?? '' }))
+}
+
+/** Fotos deste aparelho que ainda não subiram (as que vieram da nuvem já são marcadas como enviadas ao baixar). */
+export const photosToUpload = (receipts: Row[], sent: ReadonlySet<string>) =>
+  receipts.filter((r) => typeof r.dataUrl === 'string' && r.dataUrl && !sent.has(rowKey(r))).map(rowKey)
+
+/** Comprovantes excluídos cuja foto ainda não foi apagada da nuvem. */
+export const photosToDelete = (deletions: Deletion[], cleaned: ReadonlySet<string>) =>
+  deletions.filter((d) => d.table === 'receipts' && !cleaned.has(d.id)).map((d) => d.id)

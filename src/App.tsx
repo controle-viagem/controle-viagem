@@ -7,6 +7,7 @@ import { BackupPage } from './features/ajustes/BackupPage'
 import { CategoriasPage } from './features/ajustes/CategoriasPage'
 import { MaisPage } from './features/ajustes/MaisPage'
 import { MeiosPage } from './features/ajustes/MeiosPage'
+import { SincronizacaoPage } from './features/ajustes/SincronizacaoPage'
 import { AcertosPage } from './features/acertos/AcertosPage'
 import { CalculadoraPage } from './features/calculadora/CalculadoraPage'
 import { CarteirasPage } from './features/carteiras/CarteirasPage'
@@ -38,6 +39,7 @@ export function App() {
           <Route path="mais/arquivados" element={<ArquivadosPage />} />
           <Route path="mais/aparencia" element={<AparenciaPage />} />
           <Route path="mais/backup" element={<BackupPage />} />
+          <Route path="mais/sincronizacao" element={<SincronizacaoPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useApp } from '../../app/AppContext'
 import { CurrencyBadge } from '../../components/Badges'
 import { MoneyInput } from '../../components/MoneyInput'
+import { PtaxButton } from '../../components/PtaxButton'
 import { db } from '../../db/db'
 import { byCurrency } from '../../domain/custoMedio'
 import { cheapest, priceWithExtras, viaCard, viaWallet, type Option } from '../../domain/calculadora'
@@ -150,6 +151,7 @@ export function CalculadoraPage() {
           <label className="label !text-xs" htmlFor="calc-cot">Cotação do dia (para os cartões)</label>
           <input id="calc-cot" className="field" inputMode="decimal" placeholder="5,50" value={rateText} onChange={(e) => setRate(e.target.value)} />
         </div>
+        <PtaxButton currency={currency} onRate={(r) => setRate(decimalText(r))} />
         <ul className="space-y-2">
           {options.map((o) => {
             const isBest = o.key === best

@@ -50,3 +50,23 @@ export async function shrinkImage(file: Blob, maxSide = 1600, quality = 0.75): P
 
 /** Tamanho aproximado, em bytes, de uma imagem guardada como data URL. */
 export const dataUrlBytes = (dataUrl: string) => Math.round(((dataUrl.length - dataUrl.indexOf(',') - 1) * 3) / 4)
+
+/** Imagem guardada (data URL) como arquivo, para enviar à nuvem. */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64 = ''] = dataUrl.split(',')
+  const type = /data:([^;]+)/.exec(header)?.[1] ?? 'image/jpeg'
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new Blob([bytes], { type })
+}
+
+/** Arquivo baixado da nuvem como data URL, o formato em que as fotos ficam guardadas no aparelho. */
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('Não foi possível ler a foto baixada.'))
+    reader.readAsDataURL(blob.type ? blob : new Blob([blob], { type: 'image/jpeg' }))
+  })
+}

@@ -17,6 +17,7 @@ antes de mudar.
 Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rotas com `HashRouter`.
 
 - `src/domain/` — regras puras, sem banco nem tela, cada uma com teste ao lado. Toda regra de negócio nova entra aqui.
+- `src/sync/` — login Microsoft, arquivos no OneDrive (dados e fotos) e o motor que decide quando sincronizar.
 - `src/db/` — `db.ts` (schema e migrações), `types.ts`, `seed.ts`, e `repo.ts`: **única** camada que grava no banco.
 - `src/features/<tela>/` — uma pasta por tela (`carteiras/useWalletData.ts` carrega carteiras, movimentos e
   gastos pagos por elas, com custo médio e saldos calculados). `src/app/` — contexto e a viagem aberta (`useTrips`).
@@ -34,7 +35,7 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
 - Todo registro tem `id` (UUID), `createdAt`, `updatedAt`. Toda exclusão passa por `remove()` em `repo.ts`, que deixa
   o registro em `deletions` (preparação para a sincronização futura).
 - Mudou o formato dos dados? Crie uma nova `db.version(n)` com migração; nunca edite uma versão já publicada.
-- Tabela nova entra em `BACKUP_TABLES` (`domain/backup.ts`) e sobe `FILE_FORMAT` (hoje 2, desde `walletMoves`), para
+- Tabela nova entra em `BACKUP_TABLES` (`domain/backup.ts`) e sobe `FILE_FORMAT` (hoje 5), para
   um app mais antigo recusar o arquivo em vez de perder a tabela.
 - Excluir categoria ou meio de pagamento já usado apenas arquiva (`archived`), para preservar o histórico.
 - Números digitados (cotação, %) aceitam vírgula ou ponto: sempre leia com `parseDecimal`.
@@ -216,11 +217,33 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   gastos a pagar. Seção `meios` da prestação de contas (entra no Completo) e quadro em Relatórios. O filtro "Meios"
   da lista acha o meio de qualquer pagador.
 
+### Sincronização e cotação PTAX (fase 5, versão 1.0.0)
+
+- **Sincronização** (`src/sync/`, copiada do app de gastos com a renovação de login que funcionou lá): arquivo
+  `dados.json` na pasta "Controle de Viagem" do OneDrive, junção registro a registro (`domain/sync.ts`). Mesmo
+  registro de app na Microsoft que o app de gastos (`CLIENT_ID`, decisão do dono): os endereços do app de viagem
+  (publicado e `http://localhost:5174/`) precisam estar cadastrados nele como SPA. Modo convidado (outra pessoa
+  entra pelo link da pasta) igual ao do app de gastos. Tela em Mais → Sincronização; selo de estado no menu.
+- A Microsoft só renova o acesso sozinha por 24 h em apps web. Vencido, o app tenta ao abrir uma ida e volta **sem
+  tela** (`prompt: 'none'`), uma vez por abertura e só nos primeiros 20 s (nunca com formulário aberto). Se falhar,
+  fica o aviso; "Entrar de novo" vai à Microsoft já com a conta. Não mexer nisso sem conferir no app de gastos.
+- **Fotos dos comprovantes** (decisão do dono: baixar só ao abrir): a imagem **não vai no arquivo de dados**
+  (`withoutPhotos`); cada foto é um arquivo `comprovantes/<id>.jpg`, que sobe uma vez, **antes** dos dados
+  (`sendPhotos`). No outro aparelho o comprovante chega com `dataUrl` vazio e a foto é baixada ao abrir o gasto
+  (`fetchPhoto`, em `ReceiptsField`) ou ao gerar o PDF com anexos. `keepLocalPhotos` nunca apaga uma foto já
+  baixada. Excluir o comprovante apaga a foto da nuvem (melhor esforço). Fotos só na nuvem não entram no backup.
+- Restaurar backup substitui também a nuvem (`replaceRemote`); "Apagar tudo" desconecta antes.
+- **Cotação PTAX** (`domain/ptax.ts`, `components/PtaxButton.tsx`): só ao tocar no botão (decisão do dono), na
+  Calculadora, no gasto no cartão em reais, no acerto pago em reais e na carga. Serviço público do Banco Central
+  (Olinda), cotação de **venda** do boletim mais recente (4 por dia útil; o último é o fechamento), dizendo de quando
+  é. Só 10 moedas têm PTAX (`PTAX_CURRENCIES`); nas outras o botão não aparece. Fonte "comercial em tempo real"
+  avaliada e descartada: a gratuita estava com dias de atraso.
+
 ## Decisões para as próximas fases
 
 - **Consulta por viajante** (adiada pelo dono): link só leitura por pessoa/grupo com o extrato embutido (sem
   servidor, exige o app publicado); consulta ao vivo depois do sync.
-- Fase 5 — sync OneDrive (copiar `src/sync/` do app de gastos), cotação PTAX, comprovantes, exportações.
+- Ícones PNG próprios do app (hoje são os do app de gastos).
 
 ## Aparência
 

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Modal } from '../../components/Modal'
 import { MoneyInput } from '../../components/MoneyInput'
+import { PtaxButton } from '../../components/PtaxButton'
 import { db } from '../../db/db'
 import { addReceipt, deleteExpense, LAST_METHOD, removeReceipt, saveExpense, setLocal } from '../../db/repo'
 import type { ShrunkImage } from '../../lib/image'
@@ -340,6 +341,7 @@ export function ExpenseForm({ trip, expense, onClose }: Props) {
                   <input id="gs-iof" className="field" inputMode="decimal" value={iofText} onChange={(e) => setIof(e.target.value)} />
                 </div>
               </div>
+              <PtaxButton currency={currency} onRate={(r) => setRate(decimalText(r))} />
               {estimate ? (
                 <dl className="space-y-0.5 text-sm">
                   <div className="flex justify-between text-slate-500">

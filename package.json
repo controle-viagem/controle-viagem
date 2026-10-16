@@ -1,7 +1,7 @@
 {
   "name": "controle-viagem",
   "private": true,
-  "version": "0.9.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@azure/msal-browser": "5.25.0",
     "dexie": "^4.4.6",
     "dexie-react-hooks": "^4.4.0",
     "jspdf": "4.2.1",

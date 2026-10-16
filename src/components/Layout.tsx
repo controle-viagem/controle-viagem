@@ -6,6 +6,7 @@ import { useTrips } from '../app/useTrips'
 import type { Expense } from '../db/types'
 import { ExpenseForm } from '../features/lancamentos/ExpenseForm'
 import { ConfirmDialog } from './ConfirmDialog'
+import { SyncBadge } from './SyncBadge'
 
 const NAV = [
   { to: '/', label: 'Início', icon: House },
@@ -69,10 +70,14 @@ export function Layout() {
           <button className="btn btn-primary mt-4" onClick={add}>
             <Plus size={18} /> Novo gasto
           </button>
-          {active && <p className="mt-auto truncate px-2 text-xs text-slate-500">Viagem aberta: {active.name}</p>}
+          <div className="mt-auto space-y-1 px-2">
+            <SyncBadge />
+            {active && <p className="truncate text-xs text-slate-500">Viagem aberta: {active.name}</p>}
+          </div>
         </aside>
 
         <main className="min-w-0 flex-1 p-4 pb-24 md:p-8">
+          <SyncBadge className="mb-2 justify-end md:hidden" />
           <Outlet />
         </main>
       </div>
