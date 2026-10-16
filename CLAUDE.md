@@ -120,9 +120,10 @@ Vite + React + TypeScript, Tailwind v4, Dexie (IndexedDB), vite-plugin-pwa. Rota
   referência (`referenceRates`) e conta como estimado. Lista de gastos e Viagens mostram o meu custo.
 - Texto para WhatsApp: `domain/textoAcertos.ts`, com o equivalente em reais pela cotação de referência.
 - **Calculadora** (`/calculadora`, `domain/calculadora.ts`): preço + imposto % + gorjeta % (sobre o preço sem imposto)
-  para o viajante escolhido em "Quem paga" (`payerOptions`): cada carteira dele em "saldo atual" (médio, avisa se não
-  cobre) e "carregar hoje" (cotação × spread × IOF do cadastro), cada cartão em reais dele e a simulação livre;
-  destaca a mais barata.
+  para o viajante escolhido em "Quem paga" (`payerOptions`, decisão do dono na 1.2.1): **uma linha "Saldo das
+  carteiras"** pelo médio de todas as carteiras dele com saldo positivo (avisa se não cobre); **uma "carga nova" por
+  carteira**, simulando carregar hoje: cotação do dia (digitada ou PTAX) × spread × IOF do cadastro da carteira
+  (avisa quando não estão cadastrados); cada cartão em reais dele e a simulação livre; destaca a mais barata.
 - **Cotação de referência por viajante** (1.1.0, `referenceRates`, `RateLookup(moeda, { personId, methodId })`):
   médio das carteiras de quem pagou (membros, se for grupo), só saldos positivos; sem nenhuma, a última cotação da
   viagem. Cartão em reais dele: cotação do dia (última da viagem) × spread × IOF do cartão. Usada no custo do que
